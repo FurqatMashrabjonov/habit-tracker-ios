@@ -19,3 +19,9 @@ enum Pro {
     static let debuggable = false
     #endif
 }
+
+extension View {
+    /// Text grows with the phone's setting up to the first accessibility size; past it, dot walls, big
+    /// numbers and two-button rows stop fitting a phone width. Sheets don't inherit it, so each sets it.
+    func textCap() -> some View { dynamicTypeSize(...DynamicTypeSize.accessibility1) }
+}

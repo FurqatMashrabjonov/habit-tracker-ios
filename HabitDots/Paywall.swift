@@ -13,6 +13,8 @@ struct Paywall: View {
     var body: some View {
         let trial = store.trialDays
         let ready = store.products[choice] != nil
+        // Scrolls when large text doesn't fit, so the billing terms are never cut off.
+        ScrollView {
         VStack(alignment: .leading, spacing: 14) {
             Text("HabitDots Pro").font(Type.headlineSmall)
             Text("Tracking, widgets, reminders and your data stay free, with up to \(Store.freeHabits) habits. Pro adds:")
@@ -64,7 +66,10 @@ struct Paywall: View {
             .font(Type.labelLarge).foregroundStyle(palette.ink).frame(maxWidth: .infinity)
         }
         .padding(.horizontal, 20).padding(.top, 24).padding(.bottom, 12)
+        }
+        .scrollBounceBehavior(.basedOnSize)
         .presentationDetents([.height(560), .large])
+        .textCap()
         .presentationCornerRadius(Radius.sheet)
         .presentationBackground(palette.surfaceLow)
         .overlay(alignment: .bottom) {

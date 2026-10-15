@@ -108,11 +108,7 @@ public struct CheckButton: View {
         .frame(width: size, height: size)
         .scaleEffect(press)
         .contentShape(Rectangle())
-        .onTapGesture {
-            taps += 1
-            if completes { Haptics.done() } else if done { Haptics.undo() } else { Haptics.tick() }
-            onTap()
-        }
+        .onTapGesture(perform: tap)
         .onChange(of: done) { _, now in
             withAnimation(.linear(duration: now ? 0.48 : 0.32)) { t = now ? 1 : 0 }
         }
@@ -126,7 +122,17 @@ public struct CheckButton: View {
             if completes { withAnimation(.linear(duration: 0.11).delay(0.07)) { press = 1.18 } }
             withAnimation(.spring(response: 0.3, dampingFraction: 0.35).delay(back)) { press = 1 }
         }
+        .accessibilityElement()
         .accessibilityAddTraits(.isButton)
-        .accessibilityValue(done ? "Done" : "Not done")
+        .accessibilityValue(spoken)
+        .accessibilityAction { tap() }
+    }
+
+    private var spoken: String { done ? "Done" : target > 1 ? "\(count) of \(target)" : "Not done" }
+
+    private func tap() {
+        taps += 1
+        if !done && count + 1 >= target { Haptics.done() } else if done { Haptics.undo() } else { Haptics.tick() }
+        onTap()
     }
 }

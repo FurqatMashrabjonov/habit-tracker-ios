@@ -69,6 +69,7 @@ struct TaskRow: View {
                 completing = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.52) { onComplete() }
             }
+            .accessibilityLabel("Complete \(task.title)")
             VStack(alignment: .leading, spacing: 1) {
                 Text(task.title).font(Type.bodyLarge).lineLimit(2).strikethrough(completing)
                 if !meta.isEmpty {
@@ -157,6 +158,7 @@ struct TaskSheet: View {
         }
         .padding(16)
         .presentationDetents([.height(132)])
+        .textCap()
         .presentationCornerRadius(Radius.sheet)
         .presentationBackground(palette.surfaceLow)
         .onAppear {
@@ -226,6 +228,7 @@ private struct DateSheet: View {
             }
         }
         .presentationDetents([.medium])
+        .textCap()
     }
 }
 

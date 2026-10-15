@@ -139,6 +139,7 @@ struct EditSheet: View {
             }
         }
         .presentationDetents([.large])
+        .textCap()
         .presentationCornerRadius(Radius.sheet)
         .presentationBackground(palette.surfaceLow)
         .sheet(isPresented: $paywall) { Paywall() }
@@ -366,6 +367,7 @@ struct TimeSheet: View {
             }
         }
         .presentationDetents([.height(320)])
+        .textCap()
     }
 }
 
@@ -394,6 +396,7 @@ struct WeekdaysSheet: View {
             }
         }
         .presentationDetents([.height(160)])
+        .textCap()
     }
 }
 

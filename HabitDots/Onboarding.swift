@@ -531,6 +531,7 @@ private struct Returning: View {
         .frame(maxHeight: .infinity, alignment: .top)
         .disabled(busy)
         .presentationDetents([.height(sync.available && store.active ? 360 : 290)])
+        .textCap()
         .presentationCornerRadius(Radius.sheet)
         .presentationBackground(palette.background)
         .sheet(isPresented: $paywall) { Paywall() }

@@ -77,12 +77,14 @@ struct DetailView: View {
                 }
                 Spacer(minLength: 0)
                 CheckButton(done: s.isDone(s.today), count: s.value(on: s.today), target: t.target, size: 40) { model.toggle(on: s.today) }
+                    .accessibilityLabel("Today")
             }
             .padding(.top, 4)
             if let cue = t.cue, !cue.isEmpty {
                 Text(cue).font(Type.bodyMedium).foregroundStyle(palette.dim).frame(maxWidth: .infinity, alignment: .leading)
             }
             SectionCard { LabeledHeatmap(data: s.progress, today: s.today) }
+                .accessibilityElement().accessibilityLabel("History").accessibilityValue("\(s.done.count) days done")
             HStack(spacing: 8) {
                 Stat(label: "Streak", value: s.currentStreak, flame: true)
                 Stat(label: "Best streak", value: s.bestStreak)
@@ -222,6 +224,9 @@ struct MonthCalendar: View {
         }
         .buttonStyle(.plain)
         .disabled(future)
+        .accessibilityLabel(Words.date(date))
+        .accessibilityValue([done ? "Done" : nil, s.note(on: date) != nil ? "Note" : nil].compactMap { $0 }.joined(separator: ", "))
+        .accessibilityAddTraits(date == selected ? .isSelected : [])
         .aspectRatio(1, contentMode: .fit)
         .padding(3)
     }
@@ -308,6 +313,7 @@ struct DayPanel: View {
                 .animation(.easeOut(duration: 0.2), value: day)
                 Spacer()
                 CheckButton(done: done, count: value, target: s.tracker.target, size: 36, onTap: onToggle)
+                    .accessibilityLabel(Words.date(day))
                     .id(day) // a new day starts from its own state instead of animating from the last one
             }
             Button(action: onNote) {
@@ -396,6 +402,7 @@ struct NoteSheet: View {
                 }
         }
         .presentationDetents([.medium, .large])
+        .textCap()
         .presentationCornerRadius(Radius.sheet)
         .onAppear { text = initial; focused = true }
     }

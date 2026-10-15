@@ -140,6 +140,14 @@ struct TodayView: View {
                         .contentShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
                         .onTapGesture { path.append(row.id) }
                         .contextMenu { menu(row) }
+                        // VoiceOver: one element per card; activating opens it, the Check action marks today.
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("\(row.tracker.name), \(row.streak) day streak")
+                        .accessibilityValue(row.progress(on: model.today) >= 1 ? "Done today"
+                                            : row.tracker.target > 1 ? "\(row.todayCount) of \(row.tracker.target) today" : "Not done today")
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityAction { path.append(row.id) }
+                        .accessibilityAction(named: "Check") { model.toggle(row.tracker) }
                         // Long-press and move: the card lifts and the others make room, as on Android.
                         .onDrag {
                             dragged = row.id

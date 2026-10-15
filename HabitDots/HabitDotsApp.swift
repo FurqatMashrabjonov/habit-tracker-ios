@@ -35,6 +35,7 @@ struct HabitDotsApp: App {
                 }
             }
             .habitTheme(dark: theme.dark)
+            .textCap()
             .environment(model)
             .task { await model.start() }
             .onChange(of: scenePhase) { _, phase in

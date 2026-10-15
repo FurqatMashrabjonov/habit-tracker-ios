@@ -52,6 +52,7 @@ struct SettingsSheet: View {
             }
         }
         .presentationDetents([.large])
+        .textCap()
         .presentationCornerRadius(Radius.sheet)
         .presentationBackground(palette.surfaceLow)
         .sheet(isPresented: $paywall) { Paywall() }
@@ -394,6 +395,7 @@ struct SyncPage: View {
             }
             .padding(24)
             .presentationDetents([.height(200)])
+            .textCap()
         }
         .overlay(alignment: .bottom) {
             if let message { Toast(text: message).task { try? await _Concurrency.Task.sleep(for: .seconds(2)); self.message = nil } }

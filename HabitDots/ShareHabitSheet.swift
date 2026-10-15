@@ -53,6 +53,7 @@ struct ShareHabitSheet: View {
             }
         }
         .presentationDetents([.large])
+        .textCap()
         .presentationCornerRadius(Radius.sheet)
         .sheet(item: $file) { url in ShareSheet(items: [url]).presentationDetents([.medium, .large]) }
         .onAppear { dark = scheme == .dark }
