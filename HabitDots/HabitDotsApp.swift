@@ -1,9 +1,11 @@
 import SwiftUI
+import UserNotifications
 import HabitDesign
 
 @main
 struct HabitDotsApp: App {
-    @State private var model = AppModel.live()
+    @UIApplicationDelegateAdaptor private var delegate: AppDelegate
+    @State private var model = AppModel.shared
     @AppStorage("theme") private var theme = ThemeMode.system
     @AppStorage("onboarded") private var onboarded = false
 
@@ -24,5 +26,14 @@ struct HabitDotsApp: App {
             .environment(model)
             .task { await model.start() }
         }
+    }
+}
+
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        // Before launch finishes, so a Done tapped while the app wasn't running is delivered.
+        UNUserNotificationCenter.current().delegate = NotificationHandler.shared
+        Reminders.registerCategories()
+        return true
     }
 }

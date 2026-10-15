@@ -163,11 +163,12 @@ struct DemoHabit: Hashable {
 }
 
 /// Fires the burst and the done haptic from a point on screen.
+@MainActor
 private struct Celebrate {
     let confetti: Confetti
     func callAsFunction(at point: CGPoint) {
         confetti.fire(at: point)
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        Haptics.done()
     }
 }
 
@@ -409,19 +410,19 @@ private struct WidgetsStep: View {
         }
         await wait(900)
         withAnimation(.linear(duration: 0.48)) { checks[0] = 1 }
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        Haptics.done()
         await wait(650)
         withAnimation(.linear(duration: 0.48)) { checks[1] = 1 }
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        Haptics.done()
         // Water: two taps fill the box part way, the third completes it.
         for n in 1...2 {
             await wait(n == 1 ? 650 : 450)
-            UISelectionFeedbackGenerator().selectionChanged()
+            Haptics.tick()
             withAnimation(.easeInOut(duration: 0.26)) { water = Double(n) / 3 }
         }
         await wait(450)
         withAnimation(.linear(duration: 0.48)) { water = 1 }
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        Haptics.done()
     }
 }
 

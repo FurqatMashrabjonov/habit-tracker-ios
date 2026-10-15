@@ -25,6 +25,11 @@ struct TodayView: View {
                         .navigationTransition(.zoom(sourceID: id, in: zoom))
                 }
         }
+        .onChange(of: model.openHabit) { _, id in
+            guard let id else { return }
+            path = [id]
+            model.openHabit = nil
+        }
         .onAppear {
             // `-open <id>` opens a habit's page on launch (screenshots, deep links later).
             let args = ProcessInfo.processInfo.arguments

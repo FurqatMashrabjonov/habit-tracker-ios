@@ -110,9 +110,9 @@ public struct CheckButton: View {
         .contentShape(Rectangle())
         .onTapGesture {
             taps += 1
+            if completes { Haptics.done() } else if done { Haptics.undo() } else { Haptics.tick() }
             onTap()
         }
-        .sensoryFeedback(trigger: taps) { _, _ in completes ? .success : (done ? .impact(weight: .light) : .selection) }
         .onChange(of: done) { _, now in
             withAnimation(.linear(duration: now ? 0.48 : 0.32)) { t = now ? 1 : 0 }
         }

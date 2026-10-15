@@ -21,9 +21,12 @@ struct HabitRow: Identifiable, Equatable, Sendable {
 @Observable
 final class AppModel {
     private(set) var store: HabitStore
-    private(set) var rows: [HabitRow]? = nil
+    private(set) var rows: [HabitRow]? = nil { didSet { remindersChanged() } }
     private(set) var today = Day.today
-    private(set) var tasks: [Task] = []
+    private(set) var tasks: [Task] = [] { didSet { remindersChanged() } }
+    /// A habit to show on top of the home screen (a tapped reminder; later widgets and deep links).
+    var openHabit: Int64?
+    private var reminderJob: _Concurrency.Task<Void, Never>?
     private var observers: [_Concurrency.Task<Void, Never>] = []
 
     init(store: HabitStore) { self.store = store }
@@ -38,7 +41,19 @@ final class AppModel {
     }
     nonisolated static var databasePath: String { dataDirectory.appendingPathComponent("habit.db").path }
 
-    static func live() -> AppModel { AppModel(store: try! HabitStore(path: databasePath)) }
+    /// The one model, also reached by notification actions.
+    static let shared = AppModel(store: try! HabitStore(path: databasePath))
+
+    /// Any change to habits, days or tasks reschedules the reminders, once the burst of writes settles.
+    private func remindersChanged() {
+        reminderJob?.cancel()
+        let store = store, day = today
+        reminderJob = _Concurrency.Task {
+            try? await _Concurrency.Task.sleep(for: .milliseconds(500))
+            guard !_Concurrency.Task.isCancelled else { return }
+            await Reminders.rebuild(store, today: day)
+        }
+    }
 
     /// History the cards draw; a year of weeks is more than any phone shows.
     nonisolated static let historyDays = 400

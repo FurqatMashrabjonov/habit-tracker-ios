@@ -334,7 +334,7 @@ struct ReminderChip: View {
             }
         }
         .sheet(isPresented: $picking) {
-            TimeSheet(time: time ?? ClockTime((Calendar.current.component(.hour, from: Date()) + 1) % 24, 0)) { time = $0 }
+            TimeSheet(time: time ?? ClockTime((Calendar.current.component(.hour, from: Date()) + 1) % 24, 0)) { time = $0; Reminders.askPermission() }
         }
     }
 }

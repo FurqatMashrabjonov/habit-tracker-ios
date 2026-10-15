@@ -165,7 +165,7 @@ struct TaskSheet: View {
             DateSheet(day: date ?? today, from: today) { date = $0 }
         }
         .sheet(isPresented: $pickingTime) {
-            TimeSheet(time: time ?? ClockTime((Calendar.current.component(.hour, from: Date()) + 1) % 24, 0)) { time = $0 }
+            TimeSheet(time: time ?? ClockTime((Calendar.current.component(.hour, from: Date()) + 1) % 24, 0)) { time = $0; Reminders.askPermission() }
         }
     }
 
