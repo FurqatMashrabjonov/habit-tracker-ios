@@ -23,6 +23,7 @@ final class AppModel {
     let store: HabitStore
     private(set) var rows: [HabitRow]? = nil
     private(set) var today = Day.today
+    private(set) var tasks: [Task] = []
 
     init(store: HabitStore) { self.store = store }
 
@@ -44,6 +45,9 @@ final class AppModel {
         // A new day re-runs the query with the new date (midnight, time zone change).
         let days = NotificationCenter.default.notifications(named: .NSCalendarDayChanged)
         _Concurrency.Task { for await _ in days { self.today = .today } }
+        _Concurrency.Task {
+            do { for try await t in store.observe({ try HabitStore.openTasks(in: $0) }) { self.tasks = t } } catch {}
+        }
         while !_Concurrency.Task.isCancelled {
             let day = today
             let observation = store.observe { db in try Self.load(db, today: day) }
@@ -77,6 +81,10 @@ final class AppModel {
             )
         }
     }
+
+    func save(_ task: Task) { _Concurrency.Task { try? await store.save(task) } }
+    func delete(_ task: Task) { _Concurrency.Task { try? await store.delete(task) } }
+    func complete(_ task: Task) { let day = today; _Concurrency.Task { try? await store.complete(task, today: day) } }
 
     func toggle(_ t: Tracker, on day: Day? = nil) {
         _Concurrency.Task { try? await store.quick(t, on: day ?? today) }

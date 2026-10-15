@@ -25,3 +25,23 @@ public enum Words {
         }
     }
 }
+
+public extension Words {
+    /// "Today", "Tomorrow" or "October 18".
+    static func due(_ d: Day, today: Day) -> String {
+        if d == today { return "Today" }
+        if d == today + 1 { return "Tomorrow" }
+        return date(d)
+    }
+
+    static func `repeat`(_ r: Repeat) -> String {
+        switch r {
+        case .daily: return "Every day"
+        case .everyDays(let n): return "Every \(n) days"
+        case .monthly(let d): return "Monthly on the \(d)"
+        case .weekly(let days):
+            if days == Repeat.workdays { return "Weekdays" }
+            return "Weekly: " + days.sorted().map { weekdaysShort[$0 - 1] }.joined(separator: ", ")
+        }
+    }
+}

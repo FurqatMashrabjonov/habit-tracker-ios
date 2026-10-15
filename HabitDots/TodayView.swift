@@ -11,6 +11,7 @@ struct TodayView: View {
     @Environment(\.palette) private var palette
     @State private var inbox = false
     @State private var adding = false
+    @State private var taskSheet: Task?
     @State private var path: [Int64] = []
     @Namespace private var zoom
 
@@ -28,6 +29,7 @@ struct TodayView: View {
             let args = ProcessInfo.processInfo.arguments
             if let i = args.firstIndex(of: "-open"), i + 1 < args.count, let id = Int64(args[i + 1]) { path = [id] }
             if args.contains("-add") { adding = true }
+            if args.contains("-inbox") { inbox = true }
         }
     }
 
@@ -36,7 +38,7 @@ struct TodayView: View {
             header
             ZStack {
                 if inbox {
-                    InboxPlaceholder().transition(.slide(-1))
+                    InboxView { taskSheet = $0 }.transition(.slide(-1))
                 } else {
                     habits.transition(.slide(1))
                 }
@@ -46,6 +48,10 @@ struct TodayView: View {
         .background(palette.background)
         .overlay(alignment: .bottom) { Pill(inbox: $inbox).padding(.bottom, 8) }
         .sheet(isPresented: $adding) { EditSheet(existing: nil) }
+        .sheet(item: $taskSheet) { task in
+            TaskSheet(initial: task, today: model.today, onSave: { model.save($0) },
+                      onDelete: task.id == nil ? nil : { model.delete(task) })
+        }
     }
 
     private var header: some View {
@@ -54,7 +60,9 @@ struct TodayView: View {
                 RoundIconButton(icon: "ui-gear-six", label: "Settings") {}
                 Spacer()
                 RoundIconButton(icon: "ui-chart-bar", label: "Statistics") {}
-                AddButton(label: inbox ? "New task" : "New habit") { adding = true }
+                AddButton(label: inbox ? "New task" : "New habit") {
+                    if inbox { var t = Task(title: ""); t.dueDate = model.today; taskSheet = t } else { adding = true }
+                }
             }
             .padding(.vertical, 8)
             Text(inbox ? "Inbox" : "Habits")
@@ -270,13 +278,5 @@ struct EmptyHabits: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, 24)
-    }
-}
-
-struct InboxPlaceholder: View {
-    @Environment(\.palette) private var palette
-    var body: some View {
-        VStack { Text("Inbox is coming next").font(Type.bodyMedium).foregroundStyle(palette.dim); Spacer() }
-            .frame(maxWidth: .infinity).padding(.top, 40)
     }
 }

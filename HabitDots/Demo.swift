@@ -6,6 +6,17 @@ import HabitDomain
 enum Demo {
     static func seed(_ store: HabitStore, today: Day) async throws {
         guard try await store.trackers(includeArchived: true).isEmpty else { return }
+        let tasks: [(String, Int?, ClockTime?, Repeat?)] = [
+            ("Pay the internet bill", -2, nil, nil), ("Call mom", 0, ClockTime(18, 0), nil),
+            ("Water the plants", 0, nil, .weekly([1, 4])), ("Book a dentist visit", 3, nil, nil), ("Read Atomic Habits notes", nil, nil, nil),
+        ]
+        for (title, offset, time, rule) in tasks {
+            var t = Task(title: title)
+            t.dueDate = offset.map { today + $0 }
+            t.dueTime = time
+            t.repeat = rule?.encode()
+            try await store.save(t)
+        }
         let habits: [(String, String, String?, Int, Double)] = [
             ("Drink water", "drop", "8 glasses through the day", 8, 0.85),
             ("Read 20 pages", "book-open", "Before bed", 1, 0.7),

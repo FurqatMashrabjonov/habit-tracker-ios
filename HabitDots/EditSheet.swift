@@ -339,7 +339,7 @@ struct ReminderChip: View {
     }
 }
 
-private struct TimeSheet: View {
+struct TimeSheet: View {
     @State var time: ClockTime
     let onPick: (ClockTime) -> Void
     @Environment(\.dismiss) private var dismiss
