@@ -4,6 +4,8 @@ import WidgetKit
 import HabitData
 import GoogleSignIn
 import HabitDesign
+import HabitDomain
+import BackgroundTasks
 
 @main
 struct HabitDotsApp: App {
@@ -35,7 +37,10 @@ struct HabitDotsApp: App {
             .habitTheme(dark: theme.dark)
             .environment(model)
             .task { await model.start() }
-            .onChange(of: scenePhase) { _, phase in if phase == .active { model.observe(); Sync.shared.request(after: 0) } }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active { model.observe(); Sync.shared.request(after: 0) }
+                if phase == .background { Refresh.schedule() }
+            }
             .onOpenURL { GIDSignIn.sharedInstance.handle($0) }
             .task {
                 #if DEBUG
@@ -45,6 +50,27 @@ struct HabitDotsApp: App {
             }
             .sheet(isPresented: $store.paywall) { Paywall() }
         }
+        .backgroundTask(.appRefresh(Refresh.id)) { await Refresh.run() }
+    }
+}
+
+/// While the app isn't opened for days, iOS wakes it now and then: reminders roll forward (only the
+/// next few days are scheduled), the other phone's changes come down, widgets redraw.
+/// ponytail: iOS picks when, often a few times a day; nothing here depends on it running.
+enum Refresh {
+    static let id = "app.habitdots.refresh"
+
+    static func schedule() {
+        let request = BGAppRefreshTaskRequest(identifier: id)
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 4 * 3600)
+        try? BGTaskScheduler.shared.submit(request)
+    }
+
+    @MainActor static func run() async {
+        schedule()
+        await Reminders.rebuild(AppModel.shared.store, today: .today)
+        try? await Sync.shared.run()
+        WidgetCenter.shared.reloadAllTimelines()
     }
 }
 
