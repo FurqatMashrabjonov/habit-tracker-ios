@@ -11,7 +11,8 @@ struct SettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.palette) private var palette
     @AppStorage("theme") private var theme = ThemeMode.system
-    @AppStorage("pretendPro") private var pretendPro = false
+    @State private var store = Store.shared
+    @State private var paywall = false
     @State private var archived: [Tracker] = []
     @State private var trash: [TrashedHabit] = []
 
@@ -19,9 +20,11 @@ struct SettingsSheet: View {
         NavigationStack {
             Page {
                 RowGroup {
-                    Row(label: "HabitDots Pro", icon: "ui-sparkle-fill", value: pretendPro ? "Active" : nil, chevron: false) {}
+                    Row(label: "HabitDots Pro", icon: "ui-sparkle-fill", value: store.active ? "Active" : nil, chevron: !store.active) {
+                        if !store.active { paywall = true }
+                    }
                     if Pro.debuggable {
-                        Row(label: "Pretend Pro (debug)", chevron: false, checked: pretendPro) { pretendPro.toggle() }
+                        Row(label: "Pretend Pro (debug)", chevron: false, checked: store.pretend) { store.pretend.toggle() }
                     }
                 }
                 GroupTitle("App")
@@ -34,6 +37,9 @@ struct SettingsSheet: View {
                 }
                 GroupTitle("Data")
                 RowGroup {
+                    if Sync.shared.available {
+                        NavRow(label: "Sync", icon: "ui-cloud", value: Sync.shared.email ?? "Off") { SyncPage() }
+                    }
                     NavRow(label: "Backup & restore", icon: "ui-database") { DataPage() }
                 }
             }
@@ -48,6 +54,7 @@ struct SettingsSheet: View {
         .presentationDetents([.large])
         .presentationCornerRadius(Radius.sheet)
         .presentationBackground(palette.surfaceLow)
+        .sheet(isPresented: $paywall) { Paywall() }
         .task {
             let store = model.store
             async let a = store.trackers(includeArchived: true)
@@ -63,7 +70,7 @@ struct SettingsSheet: View {
 private struct AppearancePage: View {
     @AppStorage("theme") private var theme = ThemeMode.system
     @AppStorage("cards") private var cards = CardStyle.wall
-    @AppStorage("pretendPro") private var pretendPro = false
+    @State private var paywall = false
     var body: some View {
         Page {
             GroupTitle("App")
@@ -73,13 +80,14 @@ private struct AppearancePage: View {
             GroupTitle("Habit cards")
             RowGroup {
                 ForEach(CardStyle.allCases, id: \.self) { s in
-                    Row(label: s.label, value: s != .wall && !pretendPro ? "Pro" : nil, chevron: false, checked: cards == s) {
-                        if s == .wall || pretendPro { cards = s }
+                    Row(label: s.label, value: s != .wall && !Store.shared.active ? "Pro" : nil, chevron: false, checked: cards == s) {
+                        if s == .wall || Store.shared.active { cards = s } else { paywall = true }
                     }
                 }
             }
         }
         .navigationTitle("Appearance")
+        .sheet(isPresented: $paywall) { Paywall() }
     }
 }
 
@@ -309,5 +317,96 @@ struct Toast: View {
             .background(palette.ink, in: Capsule())
             .padding(.bottom, 24)
             .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+}
+
+// ---- Sync -----------------------------------------------------------------------------------------
+
+import AuthenticationServices
+
+/// Sign in for sync (Apple or Google), the sync state, sign-out and account deletion.
+struct SyncPage: View {
+    @Environment(\.palette) private var palette
+    @State private var sync = Sync.shared
+    @State private var store = Store.shared
+    @State private var busy = false
+    @State private var confirmDelete = false
+    @State private var appleDelete = false
+    @State private var paywall = false
+    @State private var message: String?
+
+    var body: some View {
+        Page {
+            if sync.email == nil {
+                Text("Keep your habits on every phone you sign in to, Android or iPhone. Nothing leaves this phone until you sign in."
+                     + (store.active ? "" : " Sync is part of Pro."))
+                    .font(Type.bodyMedium).foregroundStyle(palette.dim).padding(.horizontal, 4).padding(.bottom, 12)
+                if store.active {
+                    SignInWithAppleButton(.signIn) { sync.prepareAppleRequest($0) } onCompletion: { result in
+                        guard case .success(let auth) = result else { return }
+                        act("Couldn't sign in", "Signed in") { try await sync.signInWithApple(auth) }
+                    }
+                    .signInWithAppleButtonStyle(.black)
+                    .frame(height: 50)
+                    .clipShape(Capsule())
+                    .padding(.bottom, 10)
+                    RowGroup { Row(label: "Sign in with Google", icon: "ui-cloud", chevron: false) { act("Couldn't sign in", "Signed in") { try await sync.signInWithGoogle() } } }
+                } else {
+                    RowGroup { Row(label: "Get Pro", icon: "ui-sparkle-fill") { paywall = true } }
+                }
+            } else {
+                GroupTitle("Account")
+                RowGroup {
+                    Row(label: sync.email ?? "", icon: "ui-cloud", chevron: false) {}
+                    Row(label: "Sync now", value: sync.running ? "Syncing…" : sync.lastSynced.map { $0.formatted(.relative(presentation: .named)) } ?? "Never", chevron: false) {
+                        act("Sync failed", "Synced") { try await sync.manual() }
+                    }
+                }
+                Spacer().frame(height: 12)
+                RowGroup {
+                    Row(label: "Sign out", chevron: false) { sync.signOut(); message = "Signed out" }
+                    Row(label: "Delete account", chevron: false) { confirmDelete = true }
+                }
+            }
+        }
+        .navigationTitle("Sync")
+        .disabled(busy)
+        .sheet(isPresented: $paywall) { Paywall() }
+        .confirmationDialog("Delete your account?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            if sync.isGoogleAccount {
+                Button("Delete", role: .destructive) { act("Couldn't delete the account", "Account deleted") { try await sync.deleteAccount() } }
+            } else {
+                Button("Delete", role: .destructive) { appleDelete = true }
+            }
+        } message: {
+            Text("Your habits are removed from the cloud and your account is closed. The habits on this phone stay.")
+        }
+        .sheet(isPresented: $appleDelete) {
+            // Firebase deletes only after a fresh sign-in: confirm with Apple once more.
+            VStack(spacing: 16) {
+                Text("Confirm with Apple to delete your account.").font(Type.bodyLarge).multilineTextAlignment(.center)
+                SignInWithAppleButton(.continue) { sync.prepareAppleRequest($0) } onCompletion: { result in
+                    appleDelete = false
+                    guard case .success(let auth) = result else { return }
+                    act("Couldn't delete the account", "Account deleted") { try await sync.deleteAppleAccount(auth) }
+                }
+                .signInWithAppleButtonStyle(.black).frame(height: 50).clipShape(Capsule())
+            }
+            .padding(24)
+            .presentationDetents([.height(200)])
+        }
+        .overlay(alignment: .bottom) {
+            if let message { Toast(text: message).task { try? await _Concurrency.Task.sleep(for: .seconds(2)); self.message = nil } }
+        }
+        .animation(.snappy, value: message)
+    }
+
+    private func act(_ failure: String, _ success: String, _ work: @escaping () async throws -> Void) {
+        guard !busy else { return }
+        busy = true
+        _Concurrency.Task {
+            do { try await work(); message = success } catch { message = failure }
+            busy = false
+        }
     }
 }

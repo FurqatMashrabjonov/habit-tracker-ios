@@ -2,6 +2,7 @@ import SwiftUI
 import UserNotifications
 import WidgetKit
 import HabitData
+import GoogleSignIn
 import HabitDesign
 
 @main
@@ -10,7 +11,7 @@ struct HabitDotsApp: App {
     @State private var model = AppModel.shared
     @AppStorage("theme") private var theme = ThemeMode.system
     @AppStorage("onboarded") private var onboarded = false
-    @AppStorage("pretendPro") private var pretendPro = false
+    @State private var store = Store.shared
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
@@ -34,11 +35,15 @@ struct HabitDotsApp: App {
             .habitTheme(dark: theme.dark)
             .environment(model)
             .task { await model.start() }
-            .onChange(of: scenePhase) { _, phase in if phase == .active { model.observe() } }
-            .onChange(of: pretendPro, initial: true) { _, on in
-                Shared.pro = on
-                WidgetCenter.shared.reloadAllTimelines()
+            .onChange(of: scenePhase) { _, phase in if phase == .active { model.observe(); Sync.shared.request(after: 0) } }
+            .onOpenURL { GIDSignIn.sharedInstance.handle($0) }
+            .task {
+                #if DEBUG
+                if CommandLine.arguments.contains("-paywall") { store.paywall = true }
+                #endif
+                await store.start()
             }
+            .sheet(isPresented: $store.paywall) { Paywall() }
         }
     }
 }

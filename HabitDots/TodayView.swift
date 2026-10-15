@@ -86,7 +86,9 @@ struct TodayView: View {
                 Spacer()
                 RoundIconButton(icon: "ui-chart-bar", label: "Statistics") { stats = true }
                 AddButton(label: inbox ? "New task" : "New habit") {
-                    if inbox { var t = Task(title: ""); t.dueDate = model.today; taskSheet = t } else { adding = true }
+                    if inbox { var t = Task(title: ""); t.dueDate = model.today; taskSheet = t }
+                    // A new habit past the free limit opens the paywall instead of the editor.
+                    else if Store.shared.canAddHabit(activeHabits: model.rows?.count ?? 0) || Store.shared.require() { adding = true }
                 }
             }
             .padding(.vertical, 8)
@@ -144,7 +146,7 @@ struct HabitCard: View {
     @Environment(Confetti.self) private var confetti
     @State private var todayCell: Double = 0
     @AppStorage("cards") private var cards = CardStyle.wall
-    @AppStorage("pretendPro") private var pro = false
+    private var pro: Bool { Store.shared.active }
 
     var body: some View {
         let t = row.tracker

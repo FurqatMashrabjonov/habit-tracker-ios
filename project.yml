@@ -7,6 +7,13 @@ options:
 packages:
   HabitKit:
     path: Packages/HabitKit
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk
+    # 12.x: GoogleSignIn 9 isn't compatible with Firebase 13's App Check yet.
+    from: 12.0.0
+  GoogleSignIn:
+    url: https://github.com/google/GoogleSignIn-iOS
+    from: 9.2.0
 settings:
   base:
     SWIFT_VERSION: "6.0"
@@ -20,7 +27,8 @@ targets:
     type: application
     platform: iOS
     sources:
-      - HabitDots
+      - path: HabitDots
+        excludes: ["*.storekit"]
       - path: Shared
       # The widget views and intents also build into the app: intents run there too, and debug
       # builds show the widgets in a gallery (-widgets) since a script can't place them on a home screen.
@@ -35,6 +43,12 @@ targets:
         product: HabitData
       - package: HabitKit
         product: HabitDesign
+      - package: Firebase
+        product: FirebaseAuth
+      - package: Firebase
+        product: FirebaseFirestore
+      - package: GoogleSignIn
+        product: GoogleSignIn
       - target: HabitDotsWidget
     info:
       path: HabitDots/Info.plist
@@ -45,6 +59,8 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: app.habitdots
             CFBundleURLSchemes: [habitdots]
+          # Google sign-in returns here: REVERSED_CLIENT_ID from GoogleService-Info.plist.
+          - CFBundleURLSchemes: [com.googleusercontent.apps.1093520752686-incqdlr212f8hvkqbor40fedk0s99h8g]
         UILaunchScreen:
           UIColorName: LaunchBackground
           UIImageName: LaunchIcon
@@ -93,3 +109,28 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.habitdots.widget
+  HabitDotsTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - HabitDotsTests
+      - path: HabitDots/Products.storekit
+        buildPhase: resources
+    dependencies:
+      - target: HabitDots
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: app.habitdots.tests
+schemes:
+  HabitDots:
+    build:
+      targets:
+        HabitDots: all
+        HabitDotsTests: [test]
+    test:
+      targets: [HabitDotsTests]
+    run:
+      config: Debug
+      # Products without an App Store Connect account: Run from Xcode to buy and restore in the simulator.
+      storeKitConfiguration: HabitDots/Products.storekit

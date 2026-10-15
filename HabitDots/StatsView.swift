@@ -10,7 +10,7 @@ struct StatsView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.palette) private var palette
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("pretendPro") private var pro = false
+    private var pro: Bool { Store.shared.active }
     @State private var selected: Int64?
     @State private var done: Set<Day> = []
     @State private var stats: HabitStats?
@@ -59,6 +59,7 @@ struct StatsView: View {
                                 .foregroundStyle(palette.onInk)
                                 .padding(.horizontal, 20).padding(.vertical, 12)
                                 .background(palette.ink, in: Capsule())
+                                .onTapGesture { Store.shared.paywall = true }
                                 .padding(.top, 120)
                         }
                     }

@@ -297,7 +297,7 @@ private struct Hero: View {
 private struct PickHabits: View {
     @Binding var picks: [Int]
     @Environment(\.palette) private var palette
-    @AppStorage("pretendPro") private var pro = false
+    private var pro: Bool { Store.shared.active }
     private let today = Day.today
 
     var body: some View {
@@ -318,7 +318,7 @@ private struct PickHabits: View {
                             .frame(maxHeight: .infinity)
                     }
                     // Free covers five; the limit shows here, on day one, not as a surprise later.
-                    Text(picks.count >= Pro.freeHabits && !pro ? "\(Pro.freeHabits) habits on the free plan" : "Fewer is easier to keep.")
+                    Text(picks.count >= Store.freeHabits && !pro ? "\(Store.freeHabits) habits on the free plan" : "Fewer is easier to keep.")
                         .font(Type.bodyMedium).foregroundStyle(palette.dim)
                         .opacity(picks.count > 3 ? 1 : 0)
                         .animation(.easeOut(duration: 0.22), value: picks.count > 3)
@@ -329,7 +329,7 @@ private struct PickHabits: View {
                         let on = picks.contains(i)
                         Button {
                             if on { picks.removeAll { $0 == i } }
-                            else if picks.count < Pro.freeHabits || pro { picks.append(i) }
+                            else if picks.count < Store.freeHabits || pro { picks.append(i) }
                         } label: {
                             HStack(spacing: 6) {
                                 Image("Icons/\(t.icon)").resizable().frame(width: 18, height: 18)

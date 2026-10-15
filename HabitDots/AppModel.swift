@@ -46,6 +46,7 @@ final class AppModel {
             guard !_Concurrency.Task.isCancelled else { return }
             await Reminders.rebuild(store, today: day)
             WidgetCenter.shared.reloadAllTimelines()
+            Sync.shared.request()
         }
     }
 
@@ -92,6 +93,7 @@ final class AppModel {
         for suffix in ["", "-wal", "-shm"] { try? FileManager.default.removeItem(atPath: path + suffix) }
         try FileManager.default.copyItem(at: url, to: URL(fileURLWithPath: path))
         store = try HabitStore(path: path)
+        Sync.shared.reset() // the restored habits go up to the account on the next sync
         observe()
     }
 

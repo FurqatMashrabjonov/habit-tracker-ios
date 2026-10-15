@@ -47,6 +47,7 @@ struct EditSheet: View {
     @Environment(\.palette) private var palette
     @State private var t: Tracker
     @State private var confirmDelete = false
+    @State private var paywall = false
     @FocusState private var focus: Field?
     private enum Field { case name, cue }
 
@@ -141,9 +142,16 @@ struct EditSheet: View {
         .presentationDetents([.large])
         .presentationCornerRadius(Radius.sheet)
         .presentationBackground(palette.surfaceLow)
+        .sheet(isPresented: $paywall) { Paywall() }
     }
 
     private func save() {
+        // Bringing a habit back from the archive past the free limit needs Pro (a new one is checked
+        // before the editor opens).
+        if existing?.archived == true && !t.archived && !Store.shared.canAddHabit(activeHabits: app.rows?.count ?? 0) {
+            paywall = true
+            return
+        }
         var row = t
         row.name = row.name.trimmingCharacters(in: .whitespaces)
         row.cue = row.cue?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
