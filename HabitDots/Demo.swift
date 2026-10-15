@@ -23,6 +23,10 @@ enum Demo {
             for ago in 1...180 where roll() < rate {
                 try await store.setValue(target, of: t.id!, on: today - ago)
             }
+            if icon == "book-open" {
+                try await store.saveNote(Note(trackerId: t.id!, date: today - 1, text: "Finished the chapter on habit stacking. Reading after tea works."))
+                try await store.saveNote(Note(trackerId: t.id!, date: today - 9, text: "Skipped: long day. Never miss twice."))
+            }
         }
     }
 }

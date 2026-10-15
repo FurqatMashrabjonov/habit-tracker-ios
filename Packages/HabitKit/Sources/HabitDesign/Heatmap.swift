@@ -134,3 +134,45 @@ public struct WeekStrip: View {
         .aspectRatio(7 * 1.2 - 0.2, contentMode: .fit)
     }
 }
+
+/// `FitHeatmap` with month names above the weeks and Tu/Th/Sa beside the rows, HabitKit-style.
+/// Labels use a monospace face so they line up like a chart's axis.
+public struct LabeledHeatmap: View {
+    public let data: [Day: Double]
+    public let today: Day
+    public var targetCell: CGFloat = 13
+    @Environment(\.palette) private var palette
+    public init(data: [Day: Double], today: Day, targetCell: CGFloat = 13) { self.data = data; self.today = today; self.targetCell = targetCell }
+
+    private let side: CGFloat = 24
+    private let top: CGFloat = 16
+
+    public var body: some View {
+        HeightFromWidth(height: { w in top + FitHeatmap.geometry(width: w - side, target: targetCell).cell * 8.2 }) {
+            GeometryReader { geo in
+                let (weeks, cell) = FitHeatmap.geometry(width: geo.size.width - side, target: targetCell)
+                let step = cell * 1.2
+                let start = today.weekStart - 7 * (weeks - 1)
+                let label = Font.system(size: 11, weight: .medium, design: .monospaced)
+                ZStack(alignment: .topLeading) {
+                    // A month label sits over the first week whose Monday falls in a new month.
+                    ForEach(1..<max(weeks, 1), id: \.self) { w in
+                        let monday = start + 7 * w
+                        if monday.month != (monday - 7).month {
+                            Text(Words.months[monday.month - 1].prefix(3)).font(label).foregroundStyle(palette.dim)
+                                .offset(x: side + step * CGFloat(w))
+                        }
+                    }
+                    ForEach([1, 3, 5], id: \.self) { row in
+                        Text(Words.weekdaysShort[row]).font(label).foregroundStyle(palette.dim)
+                            .offset(y: top + step * CGFloat(row) + (cell - 13) / 2)
+                    }
+                    Canvas { ctx, _ in
+                        ctx.drawHeatmap(data, color: palette.ink, from: start, last: today, cell: cell)
+                    }
+                    .offset(x: side, y: top)
+                }
+            }
+        }
+    }
+}

@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 import HabitData
 import HabitDesign
@@ -10,8 +11,26 @@ struct TodayView: View {
     @Environment(\.palette) private var palette
     @State private var inbox = false
     @State private var adding = false
+    @State private var path: [Int64] = []
+    @Namespace private var zoom
 
     var body: some View {
+        NavigationStack(path: $path) {
+            home
+                .toolbar(.hidden, for: .navigationBar)
+                .navigationDestination(for: Int64.self) { id in
+                    DetailView(id: id, store: model.store, today: model.today)
+                        .navigationTransition(.zoom(sourceID: id, in: zoom))
+                }
+        }
+        .onAppear {
+            // `-open <id>` opens a habit's page on launch (screenshots, deep links later).
+            let args = ProcessInfo.processInfo.arguments
+            if let i = args.firstIndex(of: "-open"), i + 1 < args.count, let id = Int64(args[i + 1]) { path = [id] }
+        }
+    }
+
+    private var home: some View {
         VStack(spacing: 0) {
             header
             ZStack {
@@ -52,6 +71,9 @@ struct TodayView: View {
                 if let rows = model.rows, rows.isEmpty { EmptyHabits { adding = true } }
                 ForEach(model.rows ?? []) { row in
                     HabitCard(row: row, today: model.today) { model.toggle(row.tracker) }
+                        .contentShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+                        .onTapGesture { path.append(row.id) }
+                        .matchedTransitionSource(id: row.id, in: zoom) { $0.clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)) }
                         .transition(.opacity)
                 }
             }
