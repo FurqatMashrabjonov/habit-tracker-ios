@@ -369,6 +369,34 @@ struct TimeSheet: View {
     }
 }
 
+/// A task's own weekdays ("Mon, Wed, Fri"); at least one stays on.
+struct WeekdaysSheet: View {
+    @State var days: Set<Int>
+    let onPick: (Set<Int>) -> Void
+    @Environment(\.dismiss) private var dismiss
+    var body: some View {
+        NavigationStack {
+            HStack(spacing: 6) {
+                ForEach(1...7, id: \.self) { d in
+                    let on = days.contains(d)
+                    Choice(label: Words.weekdaysShort[d - 1], selected: on, fill: true) {
+                        let next = on ? days.subtracting([d]) : days.union([d])
+                        if !next.isEmpty { days = next }
+                    }
+                }
+            }
+            .padding(16)
+            .navigationTitle("Repeat on")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("Set") { onPick(days); dismiss() } }
+            }
+        }
+        .presentationDetents([.height(160)])
+    }
+}
+
 /// Wraps children onto new lines, like Compose's FlowRow.
 struct FlowLayout: Layout {
     var spacing: CGFloat = 8

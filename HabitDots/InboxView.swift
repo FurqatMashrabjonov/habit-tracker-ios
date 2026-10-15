@@ -100,6 +100,7 @@ struct TaskSheet: View {
     @State private var rule: Repeat?
     @State private var pickingDate = false
     @State private var pickingTime = false
+    @State private var pickingDays = false
     @FocusState private var focused: Bool
     @Environment(\.dismiss) private var dismiss
     @Environment(\.palette) private var palette
@@ -136,6 +137,7 @@ struct TaskSheet: View {
                             ForEach([Repeat.daily, .weekly(Repeat.workdays), .weekly([anchor.weekday]), .monthly(anchor.day)], id: \.self) { r in
                                 Button(Words.repeat(r)) { rule = r }
                             }
+                            Button("Pick days…") { pickingDays = true }
                             Menu("Every N days…") {
                                 ForEach(2...14, id: \.self) { n in Button("Every \(n) days") { rule = .everyDays(n) } }
                             }
@@ -163,6 +165,10 @@ struct TaskSheet: View {
         }
         .sheet(isPresented: $pickingDate) {
             DateSheet(day: date ?? today, from: today) { date = $0 }
+        }
+        .sheet(isPresented: $pickingDays) {
+            let current: Set<Int> = if case .weekly(let d) = rule { d } else { [(date ?? today).weekday] }
+            WeekdaysSheet(days: current) { rule = .weekly($0) }
         }
         .sheet(isPresented: $pickingTime) {
             TimeSheet(time: time ?? ClockTime((Calendar.current.component(.hour, from: Date()) + 1) % 24, 0)) { time = $0; Reminders.askPermission() }

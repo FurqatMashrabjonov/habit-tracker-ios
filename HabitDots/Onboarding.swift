@@ -1,4 +1,5 @@
 import SwiftUI
+import AuthenticationServices
 import UniformTypeIdentifiers
 import HabitData
 import HabitDesign
@@ -14,6 +15,7 @@ struct OnboardingView: View {
     @State private var picks: [Int] = [] // indexes into Template.all, in tap order
     @State private var importing = false
     @State private var failed = false
+    @State private var returning = false
     private let steps = 3
 
     var body: some View {
@@ -53,7 +55,7 @@ struct OnboardingView: View {
             // A second way forward; a fixed-height slot so the main button doesn't jump.
             ZStack {
                 switch step {
-                case 0: Button("Restore a backup") { importing = true }
+                case 0: Button("I already use HabitDots") { returning = true }
                 case 1: Button("Start empty") { picks = []; finish() }
                 default: EmptyView()
                 }
@@ -80,6 +82,9 @@ struct OnboardingView: View {
             } catch { failed = true }
         }
         .alert("Not a valid backup file", isPresented: $failed) { Button("OK") {} }
+        .sheet(isPresented: $returning) {
+            Returning(onBackup: { returning = false; importing = true }, onSignedIn: { returning = false; picks = []; finish() })
+        }
         #if DEBUG
         .onAppear {
             // `-onb <step> [picks…]` opens a later step, to check it without tapping through.
@@ -88,6 +93,7 @@ struct OnboardingView: View {
                 step = n
                 picks = args.dropFirst(i + 2).prefix { Int($0) != nil }.compactMap { Int($0) }
             }
+            if args.contains("-returning") { returning = true }
         }
         #endif
     }
@@ -486,6 +492,56 @@ private struct ChecklistMock: View {
             if let extra { Text(extra).font(Type.bodySmall).foregroundStyle(palette.dim) }
             Spacer()
             CheckGlyph(t: t, partial: partial).frame(width: 28, height: 28)
+        }
+    }
+}
+
+/// A new phone: sign in and the account's habits come down (sync is Pro, so the paywall with
+/// Restore purchase comes first for anyone without it), or bring a backup file along.
+private struct Returning: View {
+    let onBackup: () -> Void
+    let onSignedIn: () -> Void
+    @Environment(\.palette) private var palette
+    @State private var store = Store.shared
+    @State private var sync = Sync.shared
+    @State private var busy = false
+    @State private var paywall = false
+    @State private var failed = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Welcome back").font(Type.headlineSmall)
+            Text("Sign in to the account you sync with, or restore a backup file from your other phone.")
+                .font(Type.bodyMedium).foregroundStyle(palette.dim).padding(.bottom, 8)
+            if sync.available && store.active {
+                SignInWithAppleButton(.signIn) { sync.prepareAppleRequest($0) } onCompletion: { result in
+                    guard case .success(let auth) = result else { return }
+                    signIn { try await sync.signInWithApple(auth) }
+                }
+                .signInWithAppleButtonStyle(.black)
+                .frame(height: 50).clipShape(Capsule())
+                RowGroup { Row(label: "Sign in with Google", icon: "ui-cloud", chevron: false) { signIn { try await sync.signInWithGoogle() } } }
+            } else if sync.available {
+                RowGroup { Row(label: "Sync with your account", icon: "ui-cloud", value: "Pro") { paywall = true } }
+            }
+            RowGroup { Row(label: "Restore a backup file", icon: "ui-database", chevron: false, action: onBackup) }
+            if busy { ProgressView().frame(maxWidth: .infinity) }
+        }
+        .padding(.horizontal, 20).padding(.top, 28)
+        .frame(maxHeight: .infinity, alignment: .top)
+        .disabled(busy)
+        .presentationDetents([.height(sync.available && store.active ? 360 : 290)])
+        .presentationCornerRadius(Radius.sheet)
+        .presentationBackground(palette.background)
+        .sheet(isPresented: $paywall) { Paywall() }
+        .alert("Couldn't sign in", isPresented: $failed) { Button("OK") {} }
+    }
+
+    private func signIn(_ work: @escaping () async throws -> Void) {
+        busy = true
+        _Concurrency.Task {
+            do { try await work(); onSignedIn() } catch { failed = true }
+            busy = false
         }
     }
 }
