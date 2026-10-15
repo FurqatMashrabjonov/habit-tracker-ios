@@ -23,5 +23,6 @@ let package = Package(
         .target(name: "HabitDesign", dependencies: ["HabitDomain"]),
         .testTarget(name: "HabitDomainTests", dependencies: ["HabitDomain"]),
         .testTarget(name: "HabitDataTests", dependencies: ["HabitData"]),
+        .testTarget(name: "HabitDesignTests", dependencies: ["HabitDesign"]),
     ]
 )

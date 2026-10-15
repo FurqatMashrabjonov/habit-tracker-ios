@@ -66,7 +66,7 @@ public extension GraphicsContext {
 }
 
 /// Heatmap grid ending at `today` that shows as many whole weeks as fit the width (habit cards).
-public struct FitHeatmap: View {
+public struct FitHeatmap: View, Animatable {
     public let data: [Day: Double]
     public let today: Day
     public var targetCell: CGFloat = 11
@@ -78,7 +78,15 @@ public struct FitHeatmap: View {
         self.data = data; self.today = today; self.targetCell = targetCell; self.todayValue = todayValue; self.onTap = onTap
     }
 
+    /// Today's cell animates (a check fills it); the rest of the history is static.
+    nonisolated public var animatableData: Double {
+        get { todayValue ?? 0 }
+        set { if todayValue != nil { todayValue = newValue } }
+    }
+
     static func geometry(width: CGFloat, target: CGFloat) -> (weeks: Int, cell: CGFloat) {
+        // An unbounded or empty offer (stacks asking for an ideal size): a month of weeks at the target size.
+        guard width.isFinite, width > 0 else { return (5, target) }
         let weeks = max(Int((width + target * 0.2) / (target * 1.2)), 1)
         return (weeks, width / (CGFloat(weeks) * 1.2 - 0.2))
     }
@@ -107,7 +115,7 @@ public struct HeightFromWidth: Layout {
     let height: (CGFloat) -> CGFloat
     public init(height: @escaping (CGFloat) -> CGFloat) { self.height = height }
     public func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let w = proposal.width ?? 320
+        let w = proposal.width.flatMap { $0.isFinite ? $0 : nil } ?? 320
         return CGSize(width: w, height: height(w))
     }
     public func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
@@ -116,12 +124,16 @@ public struct HeightFromWidth: Layout {
 }
 
 /// The last seven days as one row of big cells, filling the width (compact habit cards).
-public struct WeekStrip: View {
+public struct WeekStrip: View, Animatable {
     public let data: [Day: Double]
     public let today: Day
     public var todayValue: Double? = nil
     @Environment(\.palette) private var palette
     public init(data: [Day: Double], today: Day, todayValue: Double? = nil) { self.data = data; self.today = today; self.todayValue = todayValue }
+    nonisolated public var animatableData: Double {
+        get { todayValue ?? 0 }
+        set { if todayValue != nil { todayValue = newValue } }
+    }
     public var body: some View {
         Canvas { ctx, size in
             let cell = size.width / (7 * 1.2 - 0.2)

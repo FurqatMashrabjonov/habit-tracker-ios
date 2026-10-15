@@ -44,7 +44,10 @@ final class AppModel {
     nonisolated static let historyDays = 400
 
     func start() async {
-        if ProcessInfo.processInfo.arguments.contains("-demo") { try? await Demo.seed(store, today: today) }
+        if ProcessInfo.processInfo.arguments.contains("-demo") {
+            UserDefaults.standard.set(true, forKey: "onboarded")
+            try? await Demo.seed(store, today: today)
+        }
         observe()
         _Concurrency.Task { try? await Backups.runIfDue(store) }
         // A new day re-runs the queries with the new date (midnight, time zone change).

@@ -114,12 +114,12 @@ struct Stat: View {
     let value: Int
     var flame = false
     @Environment(\.palette) private var palette
-    @State private var shown = 0
+    @State private var shown = 0.0
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 3) {
                 if flame { Image("Icons/ui-fire-fill").resizable().frame(width: 27, height: 27) }
-                Text("\(shown)").font(Type.inter(28, .semibold)).contentTransition(.numericText(value: Double(shown)))
+                CountingText(shown).font(Type.inter(28, .semibold))
             }
             Text(label).font(Type.labelMedium).foregroundStyle(palette.dim).lineLimit(1)
         }
@@ -127,8 +127,8 @@ struct Stat: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .background(palette.surfaceLow, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous).stroke(palette.softBorder, lineWidth: 1))
-        .onAppear { withAnimation(.easeOut(duration: 0.7)) { shown = value } }
-        .onChange(of: value) { _, v in withAnimation(.easeOut(duration: 0.7)) { shown = v } }
+        .onAppear { withAnimation(.easeOut(duration: 0.7)) { shown = Double(value) } }
+        .onChange(of: value) { _, v in withAnimation(.easeOut(duration: 0.7)) { shown = Double(v) } }
     }
 }
 

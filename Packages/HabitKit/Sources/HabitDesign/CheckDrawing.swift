@@ -62,6 +62,25 @@ private extension GraphicsContext.Shading {
     func inverted(isDark: Bool) -> GraphicsContext.Shading { .color(isDark ? .black : .white) }
 }
 
+/// The check drawing at step `t`, as an animatable view: `withAnimation` on `t` or `partial` plays
+/// every frame in between (a bare Canvas would jump straight to the end).
+public struct CheckGlyph: View, Animatable {
+    public var t: Double
+    public var partial: Double
+    @Environment(\.palette) private var palette
+    @Environment(\.colorScheme) private var scheme
+    public init(t: Double, partial: Double = 0) { self.t = t; self.partial = partial }
+    nonisolated public var animatableData: AnimatablePair<Double, Double> {
+        get { AnimatablePair(t, partial) }
+        set { t = newValue.first; partial = newValue.second }
+    }
+    public var body: some View {
+        Canvas { ctx, sz in
+            ctx.drawCheck(in: CGRect(origin: .zero, size: sz), t: t, color: palette.ink, partial: partial, isDark: scheme == .dark)
+        }
+    }
+}
+
 /// Animated check: pops and draws its tick when done, squishes on press.
 /// `count` of `target` fills the box part way for habits done several times a day.
 public struct CheckButton: View {
@@ -85,9 +104,7 @@ public struct CheckButton: View {
 
     public var body: some View {
         let completes = !done && count + 1 >= target
-        Canvas { ctx, sz in
-            ctx.drawCheck(in: CGRect(origin: .zero, size: sz), t: t, color: palette.ink, partial: partial, isDark: scheme == .dark)
-        }
+        CheckGlyph(t: t, partial: partial)
         .frame(width: size, height: size)
         .scaleEffect(press)
         .contentShape(Rectangle())
