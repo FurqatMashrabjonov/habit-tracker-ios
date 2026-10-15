@@ -15,6 +15,14 @@ struct TodayView: View {
     @State private var settings = false
     @State private var path: [Int64] = []
     @State private var stats = false
+    // From a card's long-press menu.
+    @State private var editHabit: Tracker?
+    @State private var shareHabit: Tracker?
+    @State private var noteHabit: Tracker?
+    @State private var deleteHabit: Tracker?
+    /// Ids top to bottom while a card is dragged; saved on drop.
+    @State private var order: [Int64]?
+    @State private var dragged: Int64?
     @Namespace private var zoom
 
     var body: some View {
@@ -53,6 +61,7 @@ struct TodayView: View {
             #if DEBUG
             // `-restore <path>` runs a restore on launch, to check it without tapping through Settings.
             if let i = args.firstIndex(of: "-restore"), i + 1 < args.count { try? model.restore(from: URL(fileURLWithPath: args[i + 1])) }
+            if args.contains("-snack") { model.snack = .init(text: "“Read 10 pages” deleted") {} }
             #endif
         }
     }
@@ -71,7 +80,27 @@ struct TodayView: View {
         }
         .background(palette.background)
         .overlay(alignment: .bottom) { Pill(inbox: $inbox).padding(.bottom, 8) }
+        .overlay(alignment: .bottom) {
+            if let snack = model.snack {
+                SnackBar(text: snack.text) { snack.undo(); model.snack = nil }
+                    .padding(.bottom, 76)
+                    .id(snack.id)
+                    .task { try? await _Concurrency.Task.sleep(for: .seconds(5)); if model.snack?.id == snack.id { model.snack = nil } }
+            }
+        }
+        .animation(.snappy, value: model.snack?.id)
         .sheet(isPresented: $adding) { EditSheet(existing: nil) }
+        .sheet(item: $editHabit) { EditSheet(existing: $0) }
+        .sheet(item: $shareHabit) { ShareHabitSheet(tracker: $0) }
+        .sheet(item: $noteHabit) { t in
+            NoteSheet(title: "\(t.name) · \(Words.date(model.today))", initial: "") { model.saveNote($0, of: t, on: model.today) }
+        }
+        .confirmationDialog("Delete habit", isPresented: Binding(get: { deleteHabit != nil }, set: { if !$0 { deleteHabit = nil } }),
+                            titleVisibility: .visible, presenting: deleteHabit) { t in
+            Button("Delete", role: .destructive) { model.delete(t) }
+        } message: { t in
+            Text("“\(t.name)” and its whole history are removed from every phone. You can restore it from Settings › Recently deleted for 30 days.")
+        }
         .sheet(isPresented: $settings) { SettingsSheet { id in path.append(id) } }
         .sheet(item: $taskSheet) { task in
             TaskSheet(initial: task, today: model.today, onSave: { model.save($0) },
@@ -105,10 +134,20 @@ struct TodayView: View {
         ScrollView {
             LazyVStack(spacing: 12) {
                 if let rows = model.rows, rows.isEmpty { EmptyHabits { adding = true } }
-                ForEach(model.rows ?? []) { row in
+                ForEach(sorted) { row in
                     HabitCard(row: row, today: model.today) { model.toggle(row.tracker) }
+                        .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
                         .contentShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
                         .onTapGesture { path.append(row.id) }
+                        .contextMenu { menu(row) }
+                        // Long-press and move: the card lifts and the others make room, as on Android.
+                        .onDrag {
+                            dragged = row.id
+                            order = sorted.map(\.id)
+                            return NSItemProvider(object: "\(row.id)" as NSString)
+                        }
+                        .onDrop(of: [.text], delegate: Reorder(target: row.id, dragged: $dragged, order: $order) { model.reorder($0) })
+                        .opacity(dragged == row.id ? 0.4 : 1)
                         .matchedTransitionSource(id: row.id, in: zoom) { $0.clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)) }
                         .transition(.opacity)
                 }
@@ -116,9 +155,80 @@ struct TodayView: View {
             .padding(.horizontal, 16)
             .padding(.top, 4)
             .padding(.bottom, 96)
-            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: model.rows?.map(\.id))
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: sorted.map(\.id))
         }
         .scrollIndicators(.hidden)
+        // A card let go between cards (not on one) still keeps its new place.
+        // ponytail: one let go outside the list stays faded until the next drag; a drop there is rare.
+        .onDrop(of: [.text], delegate: Reorder(target: -1, dragged: $dragged, order: $order) { model.reorder($0) })
+    }
+
+    /// The rows, in the dragged order while a card moves.
+    private var sorted: [HabitRow] {
+        let rows = model.rows ?? []
+        guard let order else { return rows }
+        return rows.sorted { (order.firstIndex(of: $0.id) ?? .max) < (order.firstIndex(of: $1.id) ?? .max) }
+    }
+
+    @ViewBuilder
+    private func menu(_ row: HabitRow) -> some View {
+        let yesterday = model.today - 1
+        // Only to catch up on a missed day; a wrong mark is undone from the habit's calendar.
+        if row.progress(on: yesterday) < 1 {
+            Button { model.toggle(row.tracker, on: yesterday) } label: { Label("Complete yesterday", image: "Icons/ui-calendar-check-line") }
+        }
+        Button { noteHabit = row.tracker } label: { Label("Add note", image: "Icons/ui-note-pencil-line") }
+        Button { editHabit = row.tracker } label: { Label("Edit", image: "Icons/ui-pencil-simple") }
+        Button { shareHabit = row.tracker } label: { Label("Share", image: "Icons/ui-share-network") }
+        Button { model.archive(row.tracker) } label: { Label("Archive", image: "Icons/ui-archive") }
+        Button(role: .destructive) { deleteHabit = row.tracker } label: { Label("Delete", image: "Icons/ui-trash") }
+    }
+}
+
+extension Tracker: @retroactive Identifiable {}
+
+/// Moves the dragged card to where it hovers; the new order is saved on drop.
+private struct Reorder: DropDelegate {
+    let target: Int64
+    @Binding var dragged: Int64?
+    @Binding var order: [Int64]?
+    let onDone: ([Int64]) -> Void
+
+    func dropEntered(info: DropInfo) {
+        guard let dragged, dragged != target, var o = order,
+              let from = o.firstIndex(of: dragged), let to = o.firstIndex(of: target) else { return }
+        o.move(fromOffsets: [from], toOffset: to > from ? to + 1 : to)
+        withAnimation(.snappy) { order = o }
+        Haptics.tick()
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+
+    func performDrop(info: DropInfo) -> Bool {
+        if let order { onDone(order) }
+        dragged = nil
+        // The saved order comes back through the live query; until then keep showing this one.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { order = nil }
+        return true
+    }
+}
+
+/// "Task done · Undo" over the bottom pill.
+struct SnackBar: View {
+    let text: String
+    let onUndo: () -> Void
+    @Environment(\.palette) private var palette
+    var body: some View {
+        HStack(spacing: 16) {
+            Text(text).font(Type.bodyMedium).lineLimit(1)
+            Spacer(minLength: 0)
+            Button("Undo", action: onUndo).font(Type.labelLarge)
+        }
+        .foregroundStyle(palette.onInk)
+        .padding(.leading, 18).padding(.trailing, 14).padding(.vertical, 14)
+        .background(palette.ink, in: RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
+        .padding(.horizontal, 16)
+        .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 }
 

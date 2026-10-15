@@ -48,7 +48,7 @@ struct DetailView: View {
             if let t = model.state?.tracker { EditSheet(existing: t, onDeleted: { dismiss() }) }
         }
         .confirmationDialog("Delete habit", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("Delete", role: .destructive) { dismiss(); model.delete() }
+            Button("Delete", role: .destructive) { dismiss(); if let t = model.state?.tracker { app.delete(t) } }
         } message: {
             Text("“\(model.state?.tracker.name ?? "")” and its whole history are removed from every phone. You can restore it from Settings › Recently deleted for 30 days.")
         }

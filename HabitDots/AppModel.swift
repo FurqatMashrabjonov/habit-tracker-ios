@@ -121,7 +121,47 @@ final class AppModel {
 
     func save(_ task: Task) { _Concurrency.Task { try? await store.save(task) } }
     func delete(_ task: Task) { _Concurrency.Task { try? await store.delete(task) } }
-    func complete(_ task: Task) { let day = today; _Concurrency.Task { try? await store.complete(task, today: day) } }
+    func complete(_ task: Task) {
+        let day = today, store = store
+        _Concurrency.Task { try? await store.complete(task, today: day) }
+        snack = Snack(text: "“\(task.title)” done") { _Concurrency.Task { try? await store.save(task) } }
+    }
+
+    /// A short message over the bottom of the home screen with Undo, as on Android.
+    struct Snack: Identifiable {
+        let id = UUID()
+        let text: String
+        let undo: @MainActor () -> Void
+    }
+    var snack: Snack?
+
+    /// Deletes with Undo; Settings › Recently deleted keeps it for 30 days after that.
+    func delete(_ t: Tracker) {
+        let store = store
+        _Concurrency.Task {
+            guard let item = try? await store.delete(t) else { return }
+            snack = Snack(text: "“\(t.name)” deleted") { _Concurrency.Task { try? await store.restore(item) } }
+        }
+    }
+
+    func archive(_ t: Tracker) {
+        var t = t
+        t.archived = true
+        _Concurrency.Task { [t, store] in _ = try? await store.save(t) }
+    }
+
+    /// Blank text removes the note.
+    func saveNote(_ text: String, of t: Tracker, on day: Day) {
+        guard let id = t.id else { return }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines), store = store
+        _Concurrency.Task {
+            if trimmed.isEmpty { try? await store.deleteNote(of: id, on: day) }
+            else { try? await store.saveNote(Note(trackerId: id, date: day, text: trimmed)) }
+        }
+    }
+
+    /// A new habit order, top to bottom, after a drag on the home screen.
+    func reorder(_ ids: [Int64]) { let store = store; _Concurrency.Task { try? await store.reorder(ids) } }
 
     func toggle(_ t: Tracker, on day: Day? = nil) {
         _Concurrency.Task { try? await store.quick(t, on: day ?? today) }

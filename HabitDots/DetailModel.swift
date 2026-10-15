@@ -66,9 +66,4 @@ final class DetailModel {
         t.archived = true
         _Concurrency.Task { [t] in try? await store.save(t) }
     }
-
-    func delete() {
-        guard let t = state?.tracker else { return }
-        _Concurrency.Task { _ = try? await store.delete(t) }
-    }
 }

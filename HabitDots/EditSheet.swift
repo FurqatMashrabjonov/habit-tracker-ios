@@ -130,8 +130,7 @@ struct EditSheet: View {
             }
             .confirmationDialog("Delete habit", isPresented: $confirmDelete, titleVisibility: .visible) {
                 Button("Delete", role: .destructive) {
-                    let victim = t
-                    _Concurrency.Task { _ = try? await app.store.delete(victim) }
+                    app.delete(t)
                     dismiss()
                     onDeleted()
                 }
