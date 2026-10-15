@@ -12,6 +12,7 @@ struct TodayView: View {
     @State private var inbox = false
     @State private var adding = false
     @State private var taskSheet: Task?
+    @State private var settings = false
     @State private var path: [Int64] = []
     @Namespace private var zoom
 
@@ -30,6 +31,11 @@ struct TodayView: View {
             if let i = args.firstIndex(of: "-open"), i + 1 < args.count, let id = Int64(args[i + 1]) { path = [id] }
             if args.contains("-add") { adding = true }
             if args.contains("-inbox") { inbox = true }
+            if args.contains("-settings") { settings = true }
+            #if DEBUG
+            // `-restore <path>` runs a restore on launch, to check it without tapping through Settings.
+            if let i = args.firstIndex(of: "-restore"), i + 1 < args.count { try? model.restore(from: URL(fileURLWithPath: args[i + 1])) }
+            #endif
         }
     }
 
@@ -48,6 +54,7 @@ struct TodayView: View {
         .background(palette.background)
         .overlay(alignment: .bottom) { Pill(inbox: $inbox).padding(.bottom, 8) }
         .sheet(isPresented: $adding) { EditSheet(existing: nil) }
+        .sheet(isPresented: $settings) { SettingsSheet { id in path.append(id) } }
         .sheet(item: $taskSheet) { task in
             TaskSheet(initial: task, today: model.today, onSave: { model.save($0) },
                       onDelete: task.id == nil ? nil : { model.delete(task) })
@@ -57,7 +64,7 @@ struct TodayView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
-                RoundIconButton(icon: "ui-gear-six", label: "Settings") {}
+                RoundIconButton(icon: "ui-gear-six", label: "Settings") { settings = true }
                 Spacer()
                 RoundIconButton(icon: "ui-chart-bar", label: "Statistics") {}
                 AddButton(label: inbox ? "New task" : "New habit") {
@@ -118,6 +125,8 @@ struct HabitCard: View {
     @Environment(\.palette) private var palette
     @Environment(Confetti.self) private var confetti
     @State private var todayCell: Double = 0
+    @AppStorage("cards") private var cards = CardStyle.wall
+    @AppStorage("pretendPro") private var pro = false
 
     var body: some View {
         let t = row.tracker
@@ -151,7 +160,11 @@ struct HabitCard: View {
                 }
                 .frame(width: 30, height: 30)
             }
-            FitHeatmap(data: row.progress, today: today, targetCell: 15, todayValue: todayCell)
+            switch pro ? cards : .wall {
+            case .wall: FitHeatmap(data: row.progress, today: today, targetCell: 15, todayValue: todayCell)
+            case .compact: WeekStrip(data: row.progress, today: today, todayValue: todayCell)
+            case .minimal: EmptyView()
+            }
         }
         .padding(14)
         .background(palette.surfaceLow, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))

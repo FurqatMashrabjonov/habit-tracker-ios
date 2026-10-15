@@ -190,14 +190,14 @@ public final class HabitStore: Sendable {
 
     /// Whole-database copy, write-ahead log folded in, the same file Android writes and reads.
     public func export(to url: URL) throws {
-        let source = db.path
-        try db.writeWithoutTransaction { db in
-            try db.checkpoint(.truncate)
-            if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
-            try FileManager.default.copyItem(atPath: source, toPath: url.path)
-        }
+        if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
+        // SQLite's online backup: a consistent copy even while the app's live queries read.
+        let copy = try DatabaseQueue(path: url.path)
+        try db.backup(to: copy)
         // One self-contained file (rollback journal), like the copy Android's Backup writes and reads.
-        try DatabaseQueue(path: url.path).writeWithoutTransaction { try $0.execute(sql: "PRAGMA journal_mode = DELETE") }
+        try copy.writeWithoutTransaction { try $0.execute(sql: "PRAGMA journal_mode = DELETE") }
+        try copy.close()
+        for suffix in ["-wal", "-shm"] { try? FileManager.default.removeItem(atPath: url.path + suffix) }
     }
 
     /// True when `url` is a HabitDots backup this app can open (schema version 8, from either platform).

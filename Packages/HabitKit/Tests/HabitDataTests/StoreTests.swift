@@ -109,9 +109,14 @@ import HabitDomain
         #expect(try await s.trackers().map(\.name) == ["Read"])
         #expect(try await s.db.read { try Int32.fetchOne($0, sql: "PRAGMA user_version") } == 8)
 
+        // Exporting while a live query is open (as in the app) still works.
+        let live = _Concurrency.Task { for try await _ in s.observe({ try Tracker.fetchCount($0) }) {} }
+        defer { live.cancel() }
+        try await _Concurrency.Task.sleep(for: .milliseconds(50))
         let copy = dir.appendingPathComponent("export.db")
         try s.export(to: copy)
         #expect(HabitStore.isBackup(copy))
+        #expect(!FileManager.default.fileExists(atPath: copy.path + "-shm"))
         #expect(!HabitStore.isBackup(dir.appendingPathComponent("missing.db")))
     }
 }
