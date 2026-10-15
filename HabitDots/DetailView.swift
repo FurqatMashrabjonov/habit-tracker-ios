@@ -13,6 +13,7 @@ struct DetailView: View {
     @State private var day: Day
     @State private var noteDay: Day?
     @State private var confirmDelete = false
+    @State private var editing = false
 
     init(id: Int64, store: HabitStore, today: Day) {
         _model = State(initialValue: DetailModel(id: id, store: store))
@@ -38,6 +39,9 @@ struct DetailView: View {
                 model.saveNote(text, on: d)
             }
         }
+        .sheet(isPresented: $editing) {
+            if let t = model.state?.tracker { EditSheet(existing: t, onDeleted: { dismiss() }) }
+        }
         .confirmationDialog("Delete habit", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete", role: .destructive) { dismiss(); model.delete() }
         } message: {
@@ -52,7 +56,7 @@ struct DetailView: View {
             HStack(spacing: 8) {
                 RoundIcon(icon: "ui-arrow-left", label: "Back") { dismiss() }
                 Spacer()
-                RoundIcon(icon: "ui-pencil-simple", label: "Edit") {}
+                RoundIcon(icon: "ui-pencil-simple", label: "Edit") { editing = true }
                 Menu {
                     Button { } label: { Label("Share", image: "Icons/ui-share-network") }
                     Button { model.archive(); dismiss() } label: { Label("Archive", image: "Icons/ui-archive") }

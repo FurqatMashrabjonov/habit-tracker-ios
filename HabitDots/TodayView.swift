@@ -27,6 +27,7 @@ struct TodayView: View {
             // `-open <id>` opens a habit's page on launch (screenshots, deep links later).
             let args = ProcessInfo.processInfo.arguments
             if let i = args.firstIndex(of: "-open"), i + 1 < args.count, let id = Int64(args[i + 1]) { path = [id] }
+            if args.contains("-add") { adding = true }
         }
     }
 
@@ -44,7 +45,7 @@ struct TodayView: View {
         }
         .background(palette.background)
         .overlay(alignment: .bottom) { Pill(inbox: $inbox).padding(.bottom, 8) }
-        .sheet(isPresented: $adding) { NewHabitSheet() }
+        .sheet(isPresented: $adding) { EditSheet(existing: nil) }
     }
 
     private var header: some View {

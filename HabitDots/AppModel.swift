@@ -81,10 +81,6 @@ final class AppModel {
     func toggle(_ t: Tracker, on day: Day? = nil) {
         _Concurrency.Task { try? await store.quick(t, on: day ?? today) }
     }
-
-    func add(name: String, icon: String) {
-        _Concurrency.Task { try? await store.save(Tracker(name: name, icon: icon)) }
-    }
 }
 
 extension Day {
