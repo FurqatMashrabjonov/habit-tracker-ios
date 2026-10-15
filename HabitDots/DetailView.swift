@@ -14,6 +14,7 @@ struct DetailView: View {
     @State private var noteDay: Day?
     @State private var confirmDelete = false
     @State private var editing = false
+    @State private var sharing = false
 
     init(id: Int64, store: HabitStore, today: Day) {
         _model = State(initialValue: DetailModel(id: id, store: store))
@@ -34,11 +35,15 @@ struct DetailView: View {
         .background(palette.background)
         .toolbar(.hidden, for: .navigationBar)
         .task { await model.start(today: app.today) }
+        #if DEBUG
+        .onAppear { if CommandLine.arguments.contains("-share") { sharing = true } }
+        #endif
         .sheet(item: $noteDay) { d in
             NoteSheet(title: "\(model.state?.tracker.name ?? "") · \(Words.date(d))", initial: model.state?.note(on: d) ?? "") { text in
                 model.saveNote(text, on: d)
             }
         }
+        .sheet(isPresented: $sharing) { if let t = model.state?.tracker { ShareHabitSheet(tracker: t) } }
         .sheet(isPresented: $editing) {
             if let t = model.state?.tracker { EditSheet(existing: t, onDeleted: { dismiss() }) }
         }
@@ -58,7 +63,7 @@ struct DetailView: View {
                 Spacer()
                 RoundIcon(icon: "ui-pencil-simple", label: "Edit") { editing = true }
                 Menu {
-                    Button { } label: { Label("Share", image: "Icons/ui-share-network") }
+                    Button { sharing = true } label: { Label("Share", image: "Icons/ui-share-network") }
                     Button { model.archive(); dismiss() } label: { Label("Archive", image: "Icons/ui-archive") }
                     Button(role: .destructive) { confirmDelete = true } label: { Label("Delete", image: "Icons/ui-trash") }
                 } label: { RoundIconLabel(icon: "ui-dots-three") }

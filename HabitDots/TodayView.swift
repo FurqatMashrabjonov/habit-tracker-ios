@@ -14,12 +14,14 @@ struct TodayView: View {
     @State private var taskSheet: Task?
     @State private var settings = false
     @State private var path: [Int64] = []
+    @State private var stats = false
     @Namespace private var zoom
 
     var body: some View {
         NavigationStack(path: $path) {
             home
                 .toolbar(.hidden, for: .navigationBar)
+                .navigationDestination(isPresented: $stats) { StatsView() }
                 .navigationDestination(for: Int64.self) { id in
                     DetailView(id: id, store: model.store, today: model.today)
                         .navigationTransition(.zoom(sourceID: id, in: zoom))
@@ -47,6 +49,7 @@ struct TodayView: View {
             if args.contains("-add") { adding = true }
             if args.contains("-inbox") { inbox = true }
             if args.contains("-settings") { settings = true }
+            if args.contains("-stats") { stats = true }
             #if DEBUG
             // `-restore <path>` runs a restore on launch, to check it without tapping through Settings.
             if let i = args.firstIndex(of: "-restore"), i + 1 < args.count { try? model.restore(from: URL(fileURLWithPath: args[i + 1])) }
@@ -81,7 +84,7 @@ struct TodayView: View {
             HStack(spacing: 10) {
                 RoundIconButton(icon: "ui-gear-six", label: "Settings") { settings = true }
                 Spacer()
-                RoundIconButton(icon: "ui-chart-bar", label: "Statistics") {}
+                RoundIconButton(icon: "ui-chart-bar", label: "Statistics") { stats = true }
                 AddButton(label: inbox ? "New task" : "New habit") {
                     if inbox { var t = Task(title: ""); t.dueDate = model.today; taskSheet = t } else { adding = true }
                 }
