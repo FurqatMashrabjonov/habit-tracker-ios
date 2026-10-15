@@ -25,6 +25,16 @@ struct TodayView: View {
                         .navigationTransition(.zoom(sourceID: id, in: zoom))
                 }
         }
+        .onOpenURL { url in
+            // From widgets: habitdots://habit/<id>, habitdots://inbox, habitdots://add-task, habitdots://habits.
+            switch url.host() {
+            case "habit": if let id = Int64(url.lastPathComponent) { inbox = false; path = [id] }
+            case "inbox": path = []; inbox = true
+            case "habits": path = []; inbox = false
+            case "add-task": path = []; inbox = true; var t = Task(title: ""); t.dueDate = model.today; taskSheet = t
+            default: break
+            }
+        }
         .onChange(of: model.openHabit) { _, id in
             guard let id else { return }
             path = [id]

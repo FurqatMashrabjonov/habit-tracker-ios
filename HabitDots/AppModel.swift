@@ -3,6 +3,7 @@ import GRDB
 import HabitData
 import HabitDomain
 import Observation
+import WidgetKit
 
 /// A habit as the home screen shows it: progress per day (value / target), today's count, streak.
 struct HabitRow: Identifiable, Equatable, Sendable {
@@ -31,15 +32,7 @@ final class AppModel {
 
     init(store: HabitStore) { self.store = store }
 
-    /// The App Group container (shared with the widget), or Application Support when the group isn't
-    /// available (simulator builds without signing).
-    nonisolated static var dataDirectory: URL {
-        let dir = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.app.habitdots")
-            ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir
-    }
-    nonisolated static var databasePath: String { dataDirectory.appendingPathComponent("habit.db").path }
+    nonisolated static var databasePath: String { Shared.databasePath }
 
     /// The one model, also reached by notification actions.
     static let shared = AppModel(store: try! HabitStore(path: databasePath))
@@ -52,6 +45,7 @@ final class AppModel {
             try? await _Concurrency.Task.sleep(for: .milliseconds(500))
             guard !_Concurrency.Task.isCancelled else { return }
             await Reminders.rebuild(store, today: day)
+            WidgetCenter.shared.reloadAllTimelines()
         }
     }
 
@@ -72,8 +66,9 @@ final class AppModel {
         }
     }
 
-    /// (Re)starts the live queries for the current database and day.
-    private func observe() {
+    /// (Re)starts the live queries for the current database and day. Also on returning to the app:
+    /// a widget's check is written by another process, which these queries don't see on their own.
+    func observe() {
         observers.forEach { $0.cancel() }
         let store = store, day = today
         observers = [
@@ -129,16 +124,4 @@ final class AppModel {
     func toggle(_ t: Tracker, on day: Day? = nil) {
         _Concurrency.Task { try? await store.quick(t, on: day ?? today) }
     }
-}
-
-extension Day {
-    /// Today in the phone's calendar and time zone.
-    static var today: Day { from(date: Date()) }
-
-    static func from(date: Date) -> Day {
-        let c = Calendar.current.dateComponents([.year, .month, .day], from: date)
-        return Day(c.year!, c.month!, c.day!)
-    }
-
-    static func from(millis: Int64) -> Day { from(date: Date(timeIntervalSince1970: Double(millis) / 1000)) }
 }

@@ -13,12 +13,21 @@ settings:
     MARKETING_VERSION: "1.0"
     CURRENT_PROJECT_VERSION: "1"
     TARGETED_DEVICE_FAMILY: "1"
+    # No team yet: simulator builds sign to run locally. Set DEVELOPMENT_TEAM once the Apple account exists.
+    CODE_SIGN_STYLE: Automatic
 targets:
   HabitDots:
     type: application
     platform: iOS
     sources:
       - HabitDots
+      - path: Shared
+      # The widget views and intents also build into the app: intents run there too, and debug
+      # builds show the widgets in a gallery (-widgets) since a script can't place them on a home screen.
+      - path: HabitDotsWidget
+        excludes: [Bundle.swift, "*.plist", "*.entitlements"]
+    entitlements:
+      path: HabitDots/HabitDots.entitlements
     dependencies:
       - package: HabitKit
         product: HabitDomain
@@ -26,16 +35,20 @@ targets:
         product: HabitData
       - package: HabitKit
         product: HabitDesign
+      - target: HabitDotsWidget
     info:
       path: HabitDots/Info.plist
       properties:
         CFBundleDisplayName: HabitDots
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleURLTypes:
+          - CFBundleURLName: app.habitdots
+            CFBundleURLSchemes: [habitdots]
         UILaunchScreen:
           UIColorName: LaunchBackground
           UIImageName: LaunchIcon
-        UIAppFonts:
+        UIAppFonts: &fonts
           - Inter-Regular.ttf
           - Inter-Medium.ttf
           - Inter-SemiBold.ttf
@@ -51,3 +64,32 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: app.habitdots
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_PREVIEWS: YES
+  HabitDotsWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - HabitDotsWidget
+      - path: Shared
+    entitlements:
+      path: HabitDotsWidget/HabitDotsWidget.entitlements
+    dependencies:
+      - package: HabitKit
+        product: HabitDomain
+      - package: HabitKit
+        product: HabitData
+      - package: HabitKit
+        product: HabitDesign
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+    info:
+      path: HabitDotsWidget/Info.plist
+      properties:
+        CFBundleDisplayName: HabitDots
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UIAppFonts: *fonts
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.habitdots.widget

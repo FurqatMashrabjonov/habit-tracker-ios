@@ -34,7 +34,7 @@ UI = {
 }
 
 root = pathlib.Path(__file__).resolve().parent.parent
-out = root / "HabitDots/Assets.xcassets/Icons"
+out = root / "Shared/Icons.xcassets/Icons"
 tar = tarfile.open(fileobj=io.BytesIO(urllib.request.urlopen(f"https://registry.npmjs.org/@phosphor-icons/core/-/core-{VERSION}.tgz").read()))
 
 def svg(path):

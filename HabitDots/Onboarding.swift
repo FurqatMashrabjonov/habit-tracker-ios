@@ -378,11 +378,11 @@ private struct WidgetsStep: View {
                 VStack(spacing: 12) {
                     HStack(spacing: 12) {
                         ForEach(0..<2, id: \.self) { i in
-                            SmallWidget(name: rows[i].0, icon: rows[i].1, seed: UInt64(i + 1), today: today, check: checks[i]) { at in fire(at, i) }
+                            SmallWidgetMock(name: rows[i].0, icon: rows[i].1, seed: UInt64(i + 1), today: today, check: checks[i]) { at in fire(at, i) }
                                 .rising(risen[min(i, 1)])
                         }
                     }
-                    ChecklistWidget(rows: rows, today: today, checks: checks, water: water).rising(risen[2])
+                    ChecklistMock(rows: rows, today: today, checks: checks, water: water).rising(risen[2])
                 }
                 .padding(14)
                 .background(LinearGradient(colors: [palette.ink.opacity(0.08), palette.ink.opacity(0.26)], startPoint: .top, endPoint: .bottom),
@@ -431,7 +431,7 @@ private extension View {
 }
 
 /// The single-habit widget: name, check, this month's dots.
-private struct SmallWidget: View {
+private struct SmallWidgetMock: View {
     let name: String
     let icon: String
     let seed: UInt64
@@ -457,7 +457,7 @@ private struct SmallWidget: View {
 }
 
 /// The checklist widget: today's habits as rows.
-private struct ChecklistWidget: View {
+private struct ChecklistMock: View {
     let rows: [(String, String)]
     let today: Day
     let checks: [Double]
