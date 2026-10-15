@@ -9,3 +9,4 @@ Packages/**/Package.resolved
 # Firebase config comes from the Firebase console, never from the repo
 GoogleService-Info.plist
 .DS_Store
+build/

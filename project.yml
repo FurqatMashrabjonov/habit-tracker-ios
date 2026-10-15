@@ -1,0 +1,50 @@
+name: HabitDots
+options:
+  bundleIdPrefix: app.habitdots
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+packages:
+  HabitKit:
+    path: Packages/HabitKit
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    TARGETED_DEVICE_FAMILY: "1"
+targets:
+  HabitDots:
+    type: application
+    platform: iOS
+    sources:
+      - HabitDots
+    dependencies:
+      - package: HabitKit
+        product: HabitDomain
+      - package: HabitKit
+        product: HabitData
+      - package: HabitKit
+        product: HabitDesign
+    info:
+      path: HabitDots/Info.plist
+      properties:
+        CFBundleDisplayName: HabitDots
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+          UIImageName: LaunchIcon
+        UIAppFonts:
+          - Inter-Regular.ttf
+          - Inter-Medium.ttf
+          - Inter-SemiBold.ttf
+          - Inter-Bold.ttf
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.habitdots
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_PREVIEWS: YES

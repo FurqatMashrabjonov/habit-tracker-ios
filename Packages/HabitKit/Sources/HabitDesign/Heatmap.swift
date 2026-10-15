@@ -84,33 +84,34 @@ public struct FitHeatmap: View {
     }
 
     public var body: some View {
-        GeometryReader { geo in
-            let (weeks, cell) = Self.geometry(width: geo.size.width, target: targetCell)
-            let start = today.weekStart - 7 * (weeks - 1)
-            Canvas { ctx, _ in
-                ctx.drawHeatmap(data, color: palette.ink, from: start, last: today, cell: cell, todayValue: todayValue, today: today)
-            }
-            .contentShape(Rectangle())
-            .onTapGesture { pos in
-                let step = cell * 1.2
-                let date = start + Int(pos.x / step) * 7 + Int(pos.y / step)
-                if date <= today { onTap?(date) }
+        HeightFromWidth(height: { Self.geometry(width: $0, target: targetCell).cell * 8.2 }) {
+            GeometryReader { geo in
+                let (weeks, cell) = Self.geometry(width: geo.size.width, target: targetCell)
+                let start = today.weekStart - 7 * (weeks - 1)
+                Canvas { ctx, _ in
+                    ctx.drawHeatmap(data, color: palette.ink, from: start, last: today, cell: cell, todayValue: todayValue, today: today)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture { pos in
+                    let step = cell * 1.2
+                    let date = start + Int(pos.x / step) * 7 + Int(pos.y / step)
+                    if date <= today { onTap?(date) }
+                }
             }
         }
-        .aspectRatio(contentMode: .fit)
-        .modifier(HeatmapHeight(targetCell: targetCell))
     }
 }
 
-/// Height = 8.2 cells (7 rows + 6 gaps + a little air), derived from the width like the Android layout.
-private struct HeatmapHeight: ViewModifier {
-    let targetCell: CGFloat
-    func body(content: Content) -> some View {
-        GeometryReader { geo in
-            let cell = FitHeatmap.geometry(width: geo.size.width, target: targetCell).cell
-            content.frame(height: cell * 8.2)
-        }
-        .frame(height: nil)
+/// Takes the offered width and a height computed from it (the heatmap's whole weeks decide its height).
+public struct HeightFromWidth: Layout {
+    let height: (CGFloat) -> CGFloat
+    public init(height: @escaping (CGFloat) -> CGFloat) { self.height = height }
+    public func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let w = proposal.width ?? 320
+        return CGSize(width: w, height: height(w))
+    }
+    public func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        for v in subviews { v.place(at: bounds.origin, proposal: ProposedViewSize(bounds.size)) }
     }
 }
 
