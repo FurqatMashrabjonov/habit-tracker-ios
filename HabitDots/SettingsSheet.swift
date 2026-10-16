@@ -42,6 +42,15 @@ struct SettingsSheet: View {
                     }
                     NavRow(label: "Backup & restore", icon: "ui-database") { DataPage() }
                 }
+                GroupTitle("About")
+                RowGroup {
+                    Row(label: "Privacy policy") { open("https://habitdots-app.web.app/privacy") }
+                    Row(label: "Terms of use") { open("https://habitdots-app.web.app/terms") }
+                    NavRow(label: "Open-source licenses") { LicensesPage() }
+                }
+                Text("HabitDots \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")")
+                    .font(Type.bodySmall).foregroundStyle(palette.dim)
+                    .frame(maxWidth: .infinity).padding(.top, 16)
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -64,9 +73,33 @@ struct SettingsSheet: View {
             trash = (try? await t) ?? []
         }
     }
+
+    private func open(_ url: String) { UIApplication.shared.open(URL(string: url)!) }
 }
 
 // --- Pages ---------------------------------------------------------------------------------------
+
+private struct LicensesPage: View {
+    var body: some View {
+        Page {
+            Text("""
+            HabitDots is built with:
+
+            Firebase (Auth, Cloud Firestore), GoogleSignIn and their Google dependencies: Apache License 2.0.
+
+            GRDB.swift: MIT License.
+
+            Phosphor Icons: MIT License.
+
+            Full license texts: apache.org/licenses/LICENSE-2.0 and opensource.org/license/mit.
+            """)
+            .font(Type.bodyMedium)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(4)
+        }
+        .navigationTitle("Licenses")
+    }
+}
 
 private struct AppearancePage: View {
     @AppStorage("theme") private var theme = ThemeMode.system
@@ -289,9 +322,10 @@ struct RowLabel: View {
                     .frame(width: 32, height: 32)
                     .background(palette.tile, in: RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
             }
-            Text(label).font(Type.bodyLarge).foregroundStyle(palette.ink)
+            Text(label).font(Type.bodyLarge).foregroundStyle(palette.ink).lineLimit(1).layoutPriority(1)
             Spacer(minLength: 8)
-            if let value { Text(value).font(Type.bodyMedium).foregroundStyle(palette.dim) }
+            // A long value (an email) truncates instead of squeezing the label.
+            if let value { Text(value).font(Type.bodyMedium).foregroundStyle(palette.dim).lineLimit(1) }
             if checked { Image("Icons/ui-check").resizable().frame(width: 20, height: 20) }
             if chevron { Image("Icons/ui-caret-right").resizable().frame(width: 16, height: 16).foregroundStyle(palette.dim) }
         }

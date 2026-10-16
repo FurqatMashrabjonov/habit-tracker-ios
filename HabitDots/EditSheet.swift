@@ -66,6 +66,11 @@ struct EditSheet: View {
                 VStack(alignment: .leading, spacing: 14) {
                     NavigationLink { IconPicker(selected: $t.icon) } label: { IconHeader(icon: t.icon) }
                         .buttonStyle(.plain)
+                    // The free limit, shown before it's hit rather than as a surprise at the sixth habit.
+                    if isNew && !Store.shared.active {
+                        Text("\(app.rows?.count ?? 0) of \(Store.freeHabits) free habits")
+                            .font(Type.bodySmall).foregroundStyle(palette.dim).frame(maxWidth: .infinity)
+                    }
                     SoftField(title: "Name", text: $t.name, max: nameMax).focused($focus, equals: .name)
                     if isNew && t.name.isEmpty {
                         Label("Or start from a template")
