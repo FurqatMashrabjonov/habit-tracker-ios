@@ -22,6 +22,8 @@ struct ToggleHabit: AppIntent {
             guard let t = try Tracker.fetchOne(db, key: key) else { return }
             try HabitStore.quick(in: db, t, id: key, on: .today)
         }
+        // Every widget, not just the tapped one: the checklist and a single-habit widget show the same day.
+        WidgetCenter.shared.reloadAllTimelines()
         return .result()
     }
 }
@@ -41,6 +43,8 @@ struct CompleteTask: AppIntent {
         if let task = try await store.db.read({ try Task.fetchOne($0, key: key) }), !task.done {
             try await store.complete(task, today: .today)
         }
+        // Every widget, not just the tapped one: the checklist and a single-habit widget show the same day.
+        WidgetCenter.shared.reloadAllTimelines()
         return .result()
     }
 }

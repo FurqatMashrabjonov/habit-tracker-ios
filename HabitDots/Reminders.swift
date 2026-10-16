@@ -1,5 +1,6 @@
 import Foundation
 import UserNotifications
+import WidgetKit
 import HabitData
 import HabitDomain
 
@@ -80,6 +81,12 @@ final class NotificationHandler: NSObject, UNUserNotificationCenterDelegate, @un
         switch response.actionIdentifier {
         case Reminders.doneAction:
             await MainActor.run { () -> HabitStore in AppModel.shared.store }.done(info)
+            // The app may have been launched just for this button, with no screen observing the database:
+            // redraw the widgets and send the change up here.
+            await MainActor.run {
+                WidgetCenter.shared.reloadAllTimelines()
+                Sync.shared.request(after: 0)
+            }
         case Reminders.snoozeAction:
             Reminders.snooze(content, id: response.notification.request.identifier)
         case UNNotificationDefaultActionIdentifier:
