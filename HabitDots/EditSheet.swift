@@ -95,7 +95,8 @@ struct EditSheet: View {
                     FrequencyPicker(rule: Binding(get: { t.rule }, set: { t.schedule = $0.encode() }))
                     Label("Times a day")
                     HStack(spacing: 6) {
-                        ForEach(1...6, id: \.self) { n in Choice(label: "\(n)", selected: t.target == n, fill: true) { t.dailyTarget = n } }
+                        // Up to 5 (pills, meals, the five prayers); an older habit with more keeps its own count.
+                        ForEach(Array(1...5) + (t.target > 5 ? [t.target] : []), id: \.self) { n in Choice(label: "\(n)", selected: t.target == n, fill: true) { t.dailyTarget = n } }
                     }
                     Label("Reminder")
                     ReminderChip(time: $t.reminder)
