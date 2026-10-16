@@ -11,11 +11,12 @@ struct DetailState: Equatable, Sendable {
     let values: [Day: Int]
     let progress: [Day: Double]
     let done: Set<Day>
+    let rest: Set<Day>
     let currentStreak: Int
     let bestStreak: Int
     let notes: [Note]
 
-    func value(on d: Day) -> Int { values[d] ?? 0 }
+    func value(on d: Day) -> Int { max(values[d] ?? 0, 0) }
     func isDone(_ d: Day) -> Bool { done.contains(d) }
     func note(on d: Day) -> String? { notes.first { $0.date == d }?.text }
 }
@@ -39,8 +40,9 @@ final class DetailModel {
             let progress = values.mapValues { min(Double($0) / Double(t.target), 1) }
             let done = Set(values.filter { t.isDone($0.value) }.keys)
             let rule = t.rule
-            let skip: Skip = { rule.skip($0, done: done, today: today) }
-            return DetailState(tracker: t, today: today, values: values, progress: progress, done: done,
+            let rest = entries.restDays
+            let skip: Skip = { rule.skip($0, done: done, today: today, rest: rest) }
+            return DetailState(tracker: t, today: today, values: values, progress: progress, done: done, rest: rest,
                                currentStreak: currentStreak(done, today: today, skip: skip),
                                bestStreak: bestStreak(done, skip: skip), notes: notes)
         }
@@ -50,6 +52,11 @@ final class DetailModel {
     func toggle(on day: Day) {
         guard let t = state?.tracker else { return }
         _Concurrency.Task { try? await store.quick(t, on: day) }
+    }
+
+    func toggleRest(on day: Day) {
+        let store = store, id = id
+        _Concurrency.Task { try? await store.toggleRest(id, on: day) }
     }
 
     /// Blank text deletes the note.

@@ -55,9 +55,11 @@ public struct Tracker: Codable, Hashable, Sendable, FetchableRecord, MutablePers
     public var rule: Schedule { Schedule.decode(schedule) }
 }
 
-/// One row per habit per day: 0/1 for once-a-day habits, a count otherwise.
+/// One row per habit per day: times done that day, or `Entry.rest` for a day off the user marked.
 public struct Entry: Codable, Hashable, Sendable, FetchableRecord, PersistableRecord {
     public static let databaseTableName = "entry"
+    /// A rest day (sick, travelling): not done and not missed; streaks step over it. Syncs as -1.
+    public static let rest = -1
     public var trackerId: Int64
     public var date: Day
     public var value: Int
@@ -145,4 +147,8 @@ extension ClockTime: Codable {
 public enum Clock {
     nonisolated(unsafe) public static var now: @Sendable () -> Int64 = { Int64(Date().timeIntervalSince1970 * 1000) }
     public static func nowMillis() -> Int64 { now() }
+}
+
+public extension Array where Element == Entry {
+    var restDays: Set<Day> { Set(filter { $0.value == Entry.rest }.map(\.date)) }
 }

@@ -94,7 +94,7 @@ struct DetailView: View {
             SectionCard {
                 MonthCalendar(s: s, selected: $day)
                 Divider().overlay(palette.hairline).padding(.vertical, 12)
-                DayPanel(s: s, day: day, onToggle: { model.toggle(on: day) }, onNote: { noteDay = day })
+                DayPanel(s: s, day: day, onToggle: { model.toggle(on: day) }, onNote: { noteDay = day }, onRest: { model.toggleRest(on: day) })
             }
             if !s.notes.isEmpty { Notes(s: s) { d in day = d; noteDay = d } }
         }
@@ -293,15 +293,18 @@ struct DayPanel: View {
     let day: Day
     let onToggle: () -> Void
     let onNote: () -> Void
+    let onRest: () -> Void
     @Environment(\.palette) private var palette
 
     var body: some View {
         let value = s.value(on: day)
+        let rest = s.rest.contains(day)
         let done = s.isDone(day)
         let status: String = {
             if done { return "Done" }
+            if rest { return "Rest day: the streak waits" }
             if s.tracker.target > 1 && value > 0 { return "\(value)/\(s.tracker.target)" }
-            if s.tracker.rule.skip(day, done: s.done, today: s.today) { return "Day off" }
+            if s.tracker.rule.skip(day, done: s.done, today: s.today, rest: s.rest) { return "Day off" }
             return day == s.today ? "Not yet" : "Not done"
         }()
         VStack(spacing: 10) {
@@ -312,6 +315,10 @@ struct DayPanel: View {
                 }
                 .animation(.easeOut(duration: 0.2), value: day)
                 Spacer()
+                // Not done yet: it can be a rest day instead (sick, travelling), which the streak steps over.
+                if !done && day <= s.today {
+                    Button(rest ? "Undo rest day" : "Rest day", action: onRest).font(Type.bodyMedium).foregroundStyle(palette.dim)
+                }
                 CheckButton(done: done, count: value, target: s.tracker.target, size: 36, onTap: onToggle)
                     .accessibilityLabel(Words.date(day))
                     .id(day) // a new day starts from its own state instead of animating from the last one

@@ -82,7 +82,7 @@ struct TodayView: View {
         .overlay(alignment: .bottom) { Pill(inbox: $inbox).padding(.bottom, 8) }
         .overlay(alignment: .bottom) {
             if let snack = model.snack {
-                SnackBar(text: snack.text) { snack.undo(); model.snack = nil }
+                SnackBar(text: snack.text, onUndo: snack.undo.map { undo in { undo(); model.snack = nil } })
                     .padding(.bottom, 76)
                     .id(snack.id)
                     .task { try? await _Concurrency.Task.sleep(for: .seconds(5)); if model.snack?.id == snack.id { model.snack = nil } }
@@ -185,6 +185,10 @@ struct TodayView: View {
         if row.progress(on: yesterday) < 1 {
             Button { model.toggle(row.tracker, on: yesterday) } label: { Label("Complete yesterday", image: "Icons/ui-calendar-check-line") }
         }
+        // Sick or away: today becomes a rest day the streak steps over (again to undo).
+        if row.progress(on: model.today) < 1 {
+            Button { model.toggleRest(row.tracker) } label: { Label(row.resting ? "Undo rest day" : "Rest day", image: "Icons/moon") }
+        }
         Button { noteHabit = row.tracker } label: { Label("Add note", image: "Icons/ui-note-pencil-line") }
         Button { editHabit = row.tracker } label: { Label("Edit", image: "Icons/ui-pencil-simple") }
         Button { shareHabit = row.tracker } label: { Label("Share", image: "Icons/ui-share-network") }
@@ -224,13 +228,13 @@ private struct Reorder: DropDelegate {
 /// "Task done · Undo" over the bottom pill.
 struct SnackBar: View {
     let text: String
-    let onUndo: () -> Void
+    var onUndo: (() -> Void)?
     @Environment(\.palette) private var palette
     var body: some View {
         HStack(spacing: 16) {
-            Text(text).font(Type.bodyMedium).lineLimit(1)
+            Text(text).font(Type.bodyMedium).lineLimit(onUndo == nil ? 2 : 1)
             Spacer(minLength: 0)
-            Button("Undo", action: onUndo).font(Type.labelLarge)
+            if let onUndo { Button("Undo", action: onUndo).font(Type.labelLarge) }
         }
         .foregroundStyle(palette.onInk)
         .padding(.leading, 18).padding(.trailing, 14).padding(.vertical, 14)
@@ -307,8 +311,9 @@ struct HabitCard: View {
         .padding(14)
         .background(palette.surfaceLow, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous).stroke(palette.softBorder, lineWidth: 1))
-        .onAppear { todayCell = row.progress(on: today) }
-        .onChange(of: row.progress(on: today)) { _, v in withAnimation(.easeInOut(duration: 0.45)) { todayCell = v } }
+        // Raw value: a rest day's -1 draws the dash.
+        .onAppear { todayCell = row.progress[today] ?? 0 }
+        .onChange(of: row.progress[today] ?? 0) { _, v in withAnimation(.easeInOut(duration: 0.45)) { todayCell = v } }
     }
 }
 

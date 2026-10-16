@@ -120,11 +120,12 @@ struct StatsView: View {
     private func load() async {
         guard let t = current, let id = t.id else { stats = nil; return }
         let today = model.today
-        let days = (try? await model.store.db.read { db in
-            try Day.fetchAll(db, sql: "SELECT date FROM entry WHERE trackerId = ? AND value >= ?", arguments: [id, t.target])
-        }) ?? []
+        let (days, rest) = (try? await model.store.db.read { db in
+            (try Day.fetchAll(db, sql: "SELECT date FROM entry WHERE trackerId = ? AND value >= ?", arguments: [id, t.target]),
+             try Day.fetchAll(db, sql: "SELECT date FROM entry WHERE trackerId = ? AND value = ?", arguments: [id, Entry.rest]))
+        }) ?? ([], [])
         done = Set(days)
-        stats = HabitStats(done: done, created: .from(millis: t.createdAt), rule: t.rule, today: today)
+        stats = HabitStats(done: done, created: .from(millis: t.createdAt), rule: t.rule, today: today, rest: Set(rest))
     }
 }
 

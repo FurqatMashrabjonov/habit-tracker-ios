@@ -35,9 +35,11 @@ public enum Schedule: Hashable, Sendable {
     }
 
     /// A not-done `date` that is neither a miss nor progress: an off day, a week whose quota is met,
-    /// or the current week while the quota can still be reached. Streaks step over it.
-    public func skip(_ date: Day, done: Set<Day>, today: Day) -> Bool {
+    /// the current week while the quota can still be reached, or a `rest` day the user marked (sick,
+    /// travelling). Streaks step over it.
+    public func skip(_ date: Day, done: Set<Day>, today: Day, rest: Set<Day> = []) -> Bool {
         guard !done.contains(date) else { return false }
+        if rest.contains(date) { return true }
         switch self {
         case .daily: return false
         case .weekdays(let days): return !days.contains(date.weekday)

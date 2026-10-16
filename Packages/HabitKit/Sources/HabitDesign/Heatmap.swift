@@ -38,6 +38,11 @@ public extension GraphicsContext {
         let path = Path(roundedRect: rect, cornerRadius: s * shape.radius, style: .continuous)
         if progress >= 1 { fill(path, with: .color(color)); return }
         fill(path, with: .color(color.opacity(emptyAlpha)))
+        if progress < 0 { // a rest day (-1): a short dash, "excused" rather than missed
+            let dash = CGRect(x: origin.x + s * 0.25, y: origin.y + s * 0.42, width: s * 0.5, height: s * 0.16)
+            fill(Path(roundedRect: dash, cornerRadius: s * 0.08), with: .color(color.opacity(0.55)))
+            return
+        }
         if progress <= 0 { return }
         if style == .intensity {
             fill(path, with: .color(color.opacity(intensityAlpha(progress))))

@@ -1,6 +1,7 @@
 import Foundation
 import GRDB
 import HabitData
+import HabitDesign
 import HabitDomain
 import Observation
 import WidgetKit
@@ -12,8 +13,11 @@ struct HabitRow: Identifiable, Equatable, Sendable {
     let todayCount: Int
     let streak: Int
     let mustNotMiss: Bool
+    /// Today is a rest day.
+    var resting = false
     var id: Int64 { tracker.id ?? 0 }
-    func progress(on day: Day) -> Double { progress[day] ?? 0 }
+    /// A rest day reads as 0 here; the dot wall reads the raw -1 from `progress` to draw its dash.
+    func progress(on day: Day) -> Double { max(progress[day] ?? 0, 0) }
 }
 
 /// The app's state, like Android's TodayViewModel: one live query over habits and their days,
@@ -22,7 +26,7 @@ struct HabitRow: Identifiable, Equatable, Sendable {
 @Observable
 final class AppModel {
     private(set) var store: HabitStore
-    private(set) var rows: [HabitRow]? = nil { didSet { remindersChanged() } }
+    private(set) var rows: [HabitRow]? = nil { didSet { remindersChanged(); milestone(after: oldValue) } }
     private(set) var today = Day.today
     private(set) var tasks: [Task] = [] { didSet { remindersChanged() } }
     /// A habit to show on top of the home screen (a tapped reminder; later widgets and deep links).
@@ -105,16 +109,18 @@ final class AppModel {
         return trackers.map { t in
             let mine = byHabit[t.id ?? -1] ?? []
             var progress: [Day: Double] = [:]
-            for e in mine { progress[e.date] = min(Double(e.value) / Double(t.target), 1) }
+            for e in mine { progress[e.date] = min(Double(e.value) / Double(t.target), 1) } // a rest day stays negative: the dot wall's dash
             let done = Set(mine.filter { t.isDone($0.value) }.map(\.date))
             let rule = t.rule
-            let skip: Skip = { rule.skip($0, done: done, today: today) }
+            let rest = mine.restDays
+            let skip: Skip = { rule.skip($0, done: done, today: today, rest: rest) }
             let created = Day.from(millis: t.createdAt)
             return HabitRow(
                 tracker: t, progress: progress,
-                todayCount: mine.first { $0.date == today }?.value ?? 0,
+                todayCount: max(mine.first { $0.date == today }?.value ?? 0, 0),
                 streak: currentStreak(done, today: today, skip: skip),
-                mustNotMiss: mustNotMissToday(done, today: today, since: max(created, from), skip: skip)
+                mustNotMiss: mustNotMissToday(done, today: today, since: max(created, from), skip: skip),
+                resting: rest.contains(today)
             )
         }
     }
@@ -131,9 +137,23 @@ final class AppModel {
     struct Snack: Identifiable {
         let id = UUID()
         let text: String
-        let undo: @MainActor () -> Void
+        /// nil: a plain message without the Undo button.
+        var undo: (@MainActor () -> Void)?
     }
     var snack: Snack?
+
+    /// Streak lengths worth a word on the home screen.
+    private static let milestones: Set<Int> = [7, 30, 50, 100, 200, 365]
+
+    /// A streak reaching a milestone while the app is open: a line at the bottom and a stronger buzz.
+    /// Only an increase between two reads counts, so opening the app on day 30 doesn't celebrate again.
+    private func milestone(after old: [HabitRow]?) {
+        guard let old, let rows else { return }
+        let before = Dictionary(old.map { ($0.id, $0.streak) }, uniquingKeysWith: { a, _ in a })
+        guard let hit = rows.first(where: { r in (before[r.id]).map { r.streak > $0 } == true && Self.milestones.contains(r.streak) }) else { return }
+        Haptics.done()
+        snack = Snack(text: "\(hit.streak) days in a row: \(hit.tracker.name). Keep going.")
+    }
 
     /// Deletes with Undo; Settings › Recently deleted keeps it for 30 days after that.
     func delete(_ t: Tracker) {
@@ -162,6 +182,12 @@ final class AppModel {
 
     /// A new habit order, top to bottom, after a drag on the home screen.
     func reorder(_ ids: [Int64]) { let store = store; _Concurrency.Task { try? await store.reorder(ids) } }
+
+    func toggleRest(_ t: Tracker, on day: Day? = nil) {
+        guard let id = t.id else { return }
+        let store = store, day = day ?? today
+        _Concurrency.Task { try? await store.toggleRest(id, on: day) }
+    }
 
     func toggle(_ t: Tracker, on day: Day? = nil) {
         _Concurrency.Task { try? await store.quick(t, on: day ?? today) }

@@ -13,8 +13,8 @@ public struct HabitStats: Equatable, Sendable {
             && a.perMonth.map(\.count) == b.perMonth.map(\.count) && a.perMonth.map(\.month) == b.perMonth.map(\.month)
     }
 
-    public init(done: Set<Day>, created: Day, rule: Schedule, today: Day) {
-        let skip: Skip = { rule.skip($0, done: done, today: today) }
+    public init(done: Set<Day>, created: Day, rule: Schedule, today: Day, rest: Set<Day> = []) {
+        let skip: Skip = { rule.skip($0, done: done, today: today, rest: rest) }
         let since = min(done.min() ?? created, created)
         var due = 0
         var d = since

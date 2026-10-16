@@ -75,7 +75,7 @@ struct ShareHabitSheet: View {
     }
 
     private var card: some View {
-        ShareCard(tracker: tracker, done: done, today: model.today).habitTheme(dark: dark)
+        ShareCard(tracker: tracker, done: done, today: model.today, streak: model.rows?.first { $0.id == tracker.id }?.streak ?? 0).habitTheme(dark: dark)
     }
 
     /// The card at 3x, as a PNG in the temporary folder, named after the habit.
@@ -94,6 +94,8 @@ private struct ShareCard: View {
     let tracker: Tracker
     let done: Set<Day>
     let today: Day
+    /// The home screen's streak, which already steps over off and rest days.
+    let streak: Int
     @Environment(\.palette) private var palette
     var body: some View {
         let rule = tracker.rule
@@ -104,7 +106,7 @@ private struct ShareCard: View {
                     Text(tracker.name).font(Type.titleMedium)
                     HStack(spacing: 3) {
                         Image("Icons/ui-fire-fill").resizable().frame(width: 13, height: 13)
-                        Text("\(currentStreak(done, today: today) { rule.skip($0, done: done, today: today) })")
+                        Text("\(streak)")
                             .font(.system(size: 12, weight: .medium, design: .monospaced))
                     }
                     .foregroundStyle(palette.dim)

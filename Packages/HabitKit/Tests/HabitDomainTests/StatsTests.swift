@@ -12,6 +12,16 @@ import Testing
         #expect(abs(s.rate - 3.0 / 5.0) < 1e-9)
     }
 
+    @Test func restDaysKeepTheStreakAndLeaveTheRate() {
+        // Done the last 2 days and 6-8 days ago; days 3-5 ago were rest days (sick).
+        let done = Set([1, 2, 6, 7, 8].map { today - $0 })
+        let rest = Set([3, 4, 5].map { today - $0 })
+        let s = HabitStats(done: done, created: today - 8, rule: .daily, today: today, rest: rest)
+        #expect(s.current == 5)
+        #expect(s.rate == 1)
+        #expect(HabitStats(done: done, created: today - 8, rule: .daily, today: today).current == 2)
+    }
+
     @Test func todayCountsOnlyOnceDone() {
         let open = HabitStats(done: [today - 1], created: today - 1, rule: .daily, today: today)
         #expect(open.rate == 1)

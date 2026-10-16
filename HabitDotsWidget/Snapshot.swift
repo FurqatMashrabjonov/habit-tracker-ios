@@ -46,15 +46,16 @@ enum Snapshot {
         for e in entries { progress[e.date] = min(Double(e.value) / Double(t.target), 1) }
         let done = Set(entries.filter { t.isDone($0.value) }.map(\.date))
         let rule = t.rule
-        let skip: Skip = { rule.skip($0, done: done, today: today) }
+        let rest = entries.restDays
+        let skip: Skip = { rule.skip($0, done: done, today: today, rest: rest) }
         let month = Array(today.withDay(1)...today)
         let due = month.filter { done.contains($0) || !skip($0) }
         return HabitSnap(
             id: t.id ?? 0, name: t.name, icon: t.icon, target: t.target,
-            value: entries.first { $0.date == today }?.value ?? 0,
+            value: max(entries.first { $0.date == today }?.value ?? 0, 0),
             progress: progress,
             streak: currentStreak(done, today: today, skip: skip),
-            off: !rule.due(today, done: done) && !done.contains(today),
+            off: (!rule.due(today, done: done) || rest.contains(today)) && !done.contains(today),
             offDays: Set((from...today).filter { !done.contains($0) && skip($0) && $0 != today }),
             monthDone: due.filter { done.contains($0) }.count,
             monthDue: due.count

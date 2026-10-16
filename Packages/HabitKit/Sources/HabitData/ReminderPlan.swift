@@ -38,7 +38,7 @@ public struct ReminderPlan: Sendable, Equatable {
             for offset in 0..<days {
                 let day = today + offset
                 // ponytail: later days assume nothing more gets done; any check rebuilds the whole set.
-                guard h.rule.due(day, done: done), let at = date(day, time), at > now else { continue }
+                guard h.rule.due(day, done: done), !(offset == 0 && value == Entry.rest), let at = date(day, time), at > now else { continue }
                 let progress = h.target > 1 && offset == 0 ? "\(value)/\(h.target)" : nil
                 let body = [h.cue, progress].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "  ·  ")
                 out.append(ReminderPlan(id: "h:\(h.uuid):\(day.epochDay)", title: h.name, body: body, at: at, isTask: false,

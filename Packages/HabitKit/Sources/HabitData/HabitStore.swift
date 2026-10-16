@@ -80,6 +80,14 @@ public final class HabitStore: Sendable {
         try await db.write { try Self.put(Entry(trackerId: trackerId, date: date, value: max(value, 0)), in: $0) }
     }
 
+    /// Rest day <-> nothing.
+    public func toggleRest(_ trackerId: Int64, on date: Day) async throws {
+        try await db.write { db in
+            let rest = try Self.value(in: db, of: trackerId, on: date) == Entry.rest
+            try Self.put(Entry(trackerId: trackerId, date: date, value: rest ? 0 : Entry.rest), in: db)
+        }
+    }
+
     /// One-tap action: +1 until done, then back to 0 (a once-a-day habit just toggles).
     public func quick(_ tracker: Tracker, on date: Day) async throws {
         guard let id = tracker.id else { return }
@@ -88,7 +96,7 @@ public final class HabitStore: Sendable {
 
     /// The widget's one write, in the same transaction shape as the app's.
     public static func quick(in db: Database, _ tracker: Tracker, id: Int64, on date: Day) throws {
-        let v = try value(in: db, of: id, on: date)
+        let v = max(try value(in: db, of: id, on: date), 0) // a rest day counts as 0
         switch tracker.type {
         case .boolean: try put(Entry(trackerId: id, date: date, value: tracker.isDone(v) ? 0 : v + 1), in: db)
         case .count: try put(Entry(trackerId: id, date: date, value: v + 1), in: db)
