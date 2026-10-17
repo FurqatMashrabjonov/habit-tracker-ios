@@ -383,7 +383,7 @@ struct CardStyleSegments: View {
     @Environment(\.palette) private var palette
 
     private func icon(_ s: CardStyle) -> String {
-        switch s { case .wall: "ui-squares-four"; case .compact: "ui-dots-three-outline"; case .minimal: "ui-list" }
+        switch s { case .wall: "ui-cards-wall"; case .compact: "ui-cards-week"; case .minimal: "ui-cards-minimal" }
     }
 
     var body: some View {
