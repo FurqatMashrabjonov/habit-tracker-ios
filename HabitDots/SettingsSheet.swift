@@ -371,16 +371,14 @@ struct Toast: View {
 
 // ---- Sync -----------------------------------------------------------------------------------------
 
-import AuthenticationServices
 
-/// Sign in for sync (Apple or Google), the sync state, sign-out and account deletion.
+/// Sign in for sync (Google), the sync state, sign-out and account deletion.
 struct SyncPage: View {
     @Environment(\.palette) private var palette
     @State private var sync = Sync.shared
     @State private var store = Store.shared
     @State private var busy = false
     @State private var confirmDelete = false
-    @State private var appleDelete = false
     @State private var paywall = false
     @State private var message: String?
 
@@ -391,14 +389,6 @@ struct SyncPage: View {
                      + (store.active ? "" : " Sync is part of Pro."))
                     .font(Type.bodyMedium).foregroundStyle(palette.dim).padding(.horizontal, 4).padding(.bottom, 12)
                 if store.active {
-                    SignInWithAppleButton(.signIn) { sync.prepareAppleRequest($0) } onCompletion: { result in
-                        guard case .success(let auth) = result else { return }
-                        act("Couldn't sign in", "Signed in") { try await sync.signInWithApple(auth) }
-                    }
-                    .signInWithAppleButtonStyle(.black)
-                    .frame(height: 50)
-                    .clipShape(Capsule())
-                    .padding(.bottom, 10)
                     RowGroup { Row(label: "Sign in with Google", icon: "ui-cloud", chevron: false) { act("Couldn't sign in", "Signed in") { try await sync.signInWithGoogle() } } }
                 } else {
                     RowGroup { Row(label: "Get Pro", icon: "ui-sparkle-fill") { paywall = true } }
@@ -422,28 +412,9 @@ struct SyncPage: View {
         .disabled(busy)
         .sheet(isPresented: $paywall) { Paywall() }
         .confirmationDialog("Delete your account?", isPresented: $confirmDelete, titleVisibility: .visible) {
-            if sync.isGoogleAccount {
-                Button("Delete", role: .destructive) { act("Couldn't delete the account", "Account deleted") { try await sync.deleteAccount() } }
-            } else {
-                Button("Delete", role: .destructive) { appleDelete = true }
-            }
+            Button("Delete", role: .destructive) { act("Couldn't delete the account", "Account deleted") { try await sync.deleteAccount() } }
         } message: {
             Text("Your habits are removed from the cloud and your account is closed. The habits on this phone stay.")
-        }
-        .sheet(isPresented: $appleDelete) {
-            // Firebase deletes only after a fresh sign-in: confirm with Apple once more.
-            VStack(spacing: 16) {
-                Text("Confirm with Apple to delete your account.").font(Type.bodyLarge).multilineTextAlignment(.center)
-                SignInWithAppleButton(.continue) { sync.prepareAppleRequest($0) } onCompletion: { result in
-                    appleDelete = false
-                    guard case .success(let auth) = result else { return }
-                    act("Couldn't delete the account", "Account deleted") { try await sync.deleteAppleAccount(auth) }
-                }
-                .signInWithAppleButtonStyle(.black).frame(height: 50).clipShape(Capsule())
-            }
-            .padding(24)
-            .presentationDetents([.height(200)])
-            .textCap()
         }
         .overlay(alignment: .bottom) {
             if let message { Toast(text: message).task { try? await _Concurrency.Task.sleep(for: .seconds(2)); self.message = nil } }

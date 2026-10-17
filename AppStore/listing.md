@@ -45,7 +45,7 @@ YOUR DATA STAYS YOURS
 
 HABITDOTS PRO
 • Unlimited habits (free covers 4)
-• Sync between iPhone and Android with Apple or Google sign-in
+• Sync between iPhone and Android with Google sign-in
 • Statistics
 • Widget looks and compact habit cards
 Pro is a yearly subscription with a free trial, or a one-time lifetime purchase. The subscription renews automatically unless cancelled at least 24 hours before the end of the period; manage it in Settings › Apple Account › Subscriptions.
@@ -72,11 +72,11 @@ Nothing is collected unless the user signs in for sync (Pro). Then:
 | Identifiers › User ID | Yes | No | App Functionality |
 | User Content › Other User Content (habit names, check-ins, notes) | Yes | No | App Functionality |
 
-No analytics, no advertising, no crash reporting SDKs. Purchases go through Apple and aren't collected by the app. Tasks (Inbox) never leave the phone.
+No analytics, no advertising. Crash reports only (Crashlytics), no identifiers tied to the user. Purchases go through Apple and aren't collected by the app. Tasks (Inbox) never leave the phone.
 
 ## Review notes
-- Sync needs Pro. In the review build use the sandbox: buy "Yearly" (free trial) on the paywall, then Settings › Sync › Sign in with Apple.
-- Account deletion: Settings › Sync › Delete account (Apple users confirm with Apple once more).
+- Sync needs Pro. In the review build use the sandbox: buy "Yearly" (free trial) on the paywall, then Settings › Sync › Sign in with Google.
+- Account deletion: Settings › Sync › Delete account (confirms the Google account once more).
 - No login is needed to use the app otherwise.
 
 ## Screenshots

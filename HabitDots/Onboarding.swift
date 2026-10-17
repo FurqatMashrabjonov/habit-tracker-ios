@@ -1,5 +1,4 @@
 import SwiftUI
-import AuthenticationServices
 import UniformTypeIdentifiers
 import HabitData
 import HabitDesign
@@ -514,12 +513,6 @@ private struct Returning: View {
             Text("Sign in to the account you sync with, or restore a backup file from your other phone.")
                 .font(Type.bodyMedium).foregroundStyle(palette.dim).padding(.bottom, 8)
             if sync.available && store.active {
-                SignInWithAppleButton(.signIn) { sync.prepareAppleRequest($0) } onCompletion: { result in
-                    guard case .success(let auth) = result else { return }
-                    signIn { try await sync.signInWithApple(auth) }
-                }
-                .signInWithAppleButtonStyle(.black)
-                .frame(height: 50).clipShape(Capsule())
                 RowGroup { Row(label: "Sign in with Google", icon: "ui-cloud", chevron: false) { signIn { try await sync.signInWithGoogle() } } }
             } else if sync.available {
                 RowGroup { Row(label: "Sync with your account", icon: "ui-cloud", value: "Pro") { paywall = true } }

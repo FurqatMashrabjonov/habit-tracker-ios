@@ -1,6 +1,4 @@
 import Foundation
-import AuthenticationServices
-import CryptoKit
 import FirebaseCore
 import FirebaseAuth
 import FirebaseFirestore
@@ -37,7 +35,7 @@ final class Sync {
         let settings = Firestore.firestore().settings
         settings.cacheSettings = MemoryCacheSettings() // the database is the offline copy
         Firestore.firestore().settings = settings
-        email = Auth.auth().currentUser?.email ?? (Auth.auth().currentUser != nil ? "Apple Account" : nil)
+        email = Auth.auth().currentUser?.email ?? (Auth.auth().currentUser != nil ? "Google Account" : nil)
     }
 
     var signedIn: Bool { available && Auth.auth().currentUser != nil }
@@ -154,13 +152,9 @@ final class Sync {
         try await signedIn(with: credential)
     }
 
-    func signInWithApple(_ authorization: ASAuthorization) async throws {
-        try await signedIn(with: appleCredential(authorization))
-    }
-
     private func signedIn(with credential: AuthCredential) async throws {
         let result = try await Auth.auth().signIn(with: credential)
-        email = result.user.email ?? "Apple Account"
+        email = result.user.email ?? "Google Account"
         // Deletes made while signed out stay on this phone; they must not wipe the account's copy.
         try await AppModel.shared.store.clearTombstones(upTo: .max)
         reset()
@@ -175,30 +169,14 @@ final class Sync {
     }
 
     /// Deletes the account and its cloud copy (App Store requires this in the app). Habits stay here.
-    /// Firebase only deletes after a fresh sign-in, so Google users pick their account again; Apple
-    /// users go through `deleteAppleAccount`.
+    /// Firebase only deletes after a fresh sign-in, so the user picks their Google account again.
     func deleteAccount() async throws {
         guard let uid = Auth.auth().currentUser?.uid else { return }
-        if isGoogleAccount { try await Auth.auth().currentUser?.reauthenticate(with: googleCredential()) }
+        try await Auth.auth().currentUser?.reauthenticate(with: googleCredential())
         try await deleteCloudData(uid: uid)
         try await Auth.auth().currentUser?.delete()
         signOut()
     }
-
-    /// Apple accounts confirm with Apple again (Firebase wants a fresh sign-in) and get their token revoked.
-    func deleteAppleAccount(_ authorization: ASAuthorization) async throws {
-        guard let uid = Auth.auth().currentUser?.uid else { return }
-        try await Auth.auth().currentUser?.reauthenticate(with: appleCredential(authorization))
-        if let apple = authorization.credential as? ASAuthorizationAppleIDCredential,
-           let code = apple.authorizationCode.flatMap({ String(data: $0, encoding: .utf8) }) {
-            try? await Auth.auth().revokeToken(withAuthorizationCode: code)
-        }
-        try await deleteCloudData(uid: uid)
-        try await Auth.auth().currentUser?.delete()
-        signOut()
-    }
-
-    var isGoogleAccount: Bool { Auth.auth().currentUser?.providerData.contains { $0.providerID == "google.com" } == true }
 
     private func deleteCloudData(uid: String) async throws {
         let user = Firestore.firestore().collection("users").document(uid)
@@ -221,20 +199,5 @@ final class Sync {
         let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: top)
         guard let idToken = result.user.idToken?.tokenString else { throw URLError(.userAuthenticationRequired) }
         return GoogleAuthProvider.credential(withIDToken: idToken, accessToken: result.user.accessToken.tokenString)
-    }
-
-    // Sign in with Apple: a one-time nonce, hashed into the request and checked by Firebase.
-    private(set) var nonce = ""
-
-    func prepareAppleRequest(_ request: ASAuthorizationAppleIDRequest) {
-        nonce = UUID().uuidString + UUID().uuidString
-        request.requestedScopes = [.email]
-        request.nonce = SHA256.hash(data: Data(nonce.utf8)).map { String(format: "%02x", $0) }.joined()
-    }
-
-    private func appleCredential(_ authorization: ASAuthorization) throws -> AuthCredential {
-        guard let apple = authorization.credential as? ASAuthorizationAppleIDCredential,
-              let token = apple.identityToken.flatMap({ String(data: $0, encoding: .utf8) }) else { throw URLError(.userAuthenticationRequired) }
-        return OAuthProvider.appleCredential(withIDToken: token, rawNonce: nonce, fullName: apple.fullName)
     }
 }
