@@ -131,8 +131,9 @@ struct TodayView: View {
                 Text(inbox ? "Inbox" : "Habits")
                     .font(Type.titleLarge)
                     .contentTransition(.opacity)
+                Spacer()
                 // How the cards look sits by the list it changes, not three taps away in Settings.
-                if !inbox { CardStyleMenu().transition(.opacity) }
+                if !inbox { CardStyleSegments().transition(.opacity) }
             }
             .frame(height: 48)
             .animation(.easeOut(duration: 0.22), value: inbox)
@@ -372,30 +373,44 @@ struct AddButton: View {
 }
 
 /// Round header button with a soft press bounce.
-/// A quiet button after the page title: pick the dot wall, the last week, or name only (the last two with Pro).
-struct CardStyleMenu: View {
+/// Icons in a capsule after the page title, like the Habits | Inbox pill: the dot wall, the last week,
+/// or name only. The last two need Pro and open the paywall until then.
+struct CardStyleSegments: View {
     @AppStorage("cards") private var cards = CardStyle.wall
     @State private var store = Store.shared
     @State private var paywall = false
     @Environment(\.palette) private var palette
+
+    private func icon(_ s: CardStyle) -> String {
+        switch s { case .wall: "ui-squares-four"; case .compact: "ui-dots-three-outline"; case .minimal: "ui-list" }
+    }
+
     var body: some View {
-        Menu {
-            ForEach(CardStyle.allCases, id: \.self) { s in
+        let styles = CardStyle.allCases
+        HStack(spacing: 0) {
+            ForEach(styles, id: \.self) { s in
+                let on = cards == s, locked = s != .wall && !store.active
                 Button {
-                    if s == .wall || store.active { cards = s } else { paywall = true }
+                    if locked { paywall = true } else { cards = s }
                 } label: {
-                    if s != .wall && !store.active { Label(s.label + " · Pro", image: "Icons/ui-lock-simple") }
-                    else if cards == s { Label(s.label, image: "Icons/ui-check") }
-                    else { Text(s.label) }
+                    Image("Icons/\(icon(s))").resizable().frame(width: 16, height: 16)
+                        .foregroundStyle(on ? palette.onInk : locked ? palette.dim.opacity(0.55) : palette.dim)
+                        .frame(width: 38, height: 30)
+                        .contentShape(Capsule())
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(s.label + (locked ? ", Pro" : ""))
+                .accessibilityAddTraits(on ? .isSelected : [])
             }
-        } label: {
-            Image("Icons/ui-rows").resizable().frame(width: 16, height: 16)
-                .foregroundStyle(palette.dim)
-                .frame(width: 28, height: 28)
-                .background(palette.tile, in: Circle())
         }
-        .accessibilityLabel("Card style, \(cards.label)")
+        .background(alignment: .leading) {
+            Capsule().fill(palette.ink).frame(width: 38, height: 30)
+                .offset(x: CGFloat(styles.firstIndex(of: cards) ?? 0) * 38)
+                .animation(.spring(response: 0.3, dampingFraction: 0.75), value: cards)
+        }
+        .padding(3)
+        .background(palette.tile, in: Capsule())
+        .sensoryFeedback(.selection, trigger: cards)
         .sheet(isPresented: $paywall) { Paywall() }
     }
 }
