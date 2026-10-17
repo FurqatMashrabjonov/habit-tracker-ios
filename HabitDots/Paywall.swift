@@ -1,7 +1,8 @@
 import SwiftUI
 import HabitDesign
 
-/// The paywall, as on Android: what Pro adds, yearly (with its free trial) or lifetime, and restore.
+/// The paywall, as on Android: what Pro adds, each shown rather than listed; yearly (with its free
+/// trial) or lifetime, anchored against each other; and restore.
 struct Paywall: View {
     @Environment(\.palette) private var palette
     @Environment(\.dismiss) private var dismiss
@@ -19,16 +20,24 @@ struct Paywall: View {
             Text("HabitDots Pro").font(Type.headlineSmall)
             Text("Tracking, widgets, reminders and your data stay free, with up to \(Store.freeHabits) habits. Pro adds:")
                 .font(Type.bodyMedium).foregroundStyle(palette.dim)
-            VStack(alignment: .leading, spacing: 10) {
-                feature("ui-dots-nine", "Unlimited habits")
-                feature("ui-cloud", "Sync across your phones")
-                feature("ui-chart-bar", "Statistics")
-                feature("ui-palette-line", "Widget looks and layouts, compact habit cards")
+            // What you get, drawn: a tile per feature with a small picture of it.
+            Grid(horizontalSpacing: 10, verticalSpacing: 10) {
+                GridRow {
+                    FeatureTile(title: "Unlimited habits", note: "As many walls as you like") { MiniWall() }
+                    FeatureTile(title: "Statistics", note: "Momentum, weekdays, milestones") { MiniRing() }
+                }
+                GridRow {
+                    FeatureTile(title: "Sync", note: "The same dots on every phone") { MiniSync() }
+                    FeatureTile(title: "Widget looks", note: "Clear, Glass, Terminal, layouts") { MiniLooks() }
+                }
             }
             HStack(spacing: 10) {
-                plan(Store.yearly, "Yearly", store.price(Store.yearly) ?? "$11.99", trial.map { "\($0) days free" })
-                plan(Store.lifetime, "Lifetime", store.price(Store.lifetime) ?? "$29.99", "Pay once")
+                plan(Store.yearly, "Yearly", store.price(Store.yearly) ?? "$11.99",
+                     trial.map { "\($0) days free" }, (store.monthlyOfYearly ?? "$1.00") + " / month")
+                plan(Store.lifetime, "Lifetime", store.price(Store.lifetime) ?? "$29.99",
+                     "Pay once", "Pays off in \(Self.years(store.lifetimeInYears ?? 2.5)) years, then it's yours")
             }
+            .fixedSize(horizontal: false, vertical: true)
             Button {
                 busy = true
                 _Concurrency.Task {
@@ -68,7 +77,7 @@ struct Paywall: View {
         .padding(.horizontal, 20).padding(.top, 24).padding(.bottom, 12)
         }
         .scrollBounceBehavior(.basedOnSize)
-        .presentationDetents([.height(560), .large])
+        .presentationDetents([.height(700), .large])
         .textCap()
         .presentationCornerRadius(Radius.sheet)
         .presentationBackground(palette.surfaceLow)
@@ -78,23 +87,32 @@ struct Paywall: View {
         .animation(.snappy, value: message)
     }
 
-    private func feature(_ icon: String, _ text: String) -> some View {
-        HStack(spacing: 12) {
-            Image("Icons/\(icon)").resizable().frame(width: 20, height: 20)
-            Text(text).font(Type.bodyLarge)
-        }
+    /// "2.5" or "3", whichever reads naturally.
+    private static func years(_ y: Double) -> String {
+        let r = (y * 2).rounded() / 2
+        return r == r.rounded() ? "\(Int(r))" : String(format: "%.1f", r)
     }
 
-    private func plan(_ id: String, _ title: String, _ price: String, _ note: String?) -> some View {
+    private func plan(_ id: String, _ title: String, _ price: String, _ note: String?, _ anchor: String) -> some View {
         let selected = choice == id
         return Button { choice = id } label: {
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(Type.labelLarge).foregroundStyle(palette.dim)
+                HStack {
+                    Text(title).font(Type.labelLarge).foregroundStyle(palette.dim)
+                    Spacer()
+                    ZStack {
+                        Circle().fill(selected ? palette.ink : .clear)
+                        Circle().stroke(selected ? .clear : palette.outline, lineWidth: 1.5)
+                        if selected { Image("Icons/ui-check").resizable().frame(width: 12, height: 12).foregroundStyle(palette.onInk) }
+                    }
+                    .frame(width: 20, height: 20)
+                }
                 // Long local prices shrink to fit one line instead of wrapping.
                 Text(price).font(Type.titleLarge).lineLimit(1).minimumScaleFactor(0.5)
-                if let note { Text(note).font(Type.labelMedium).foregroundStyle(palette.dim) }
+                if let note { Text(note).font(Type.labelMedium).foregroundStyle(palette.ink) }
+                Text(anchor).font(Type.labelSmall).foregroundStyle(palette.dim).lineLimit(2).padding(.top, 4)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(14)
             .background(palette.surfaceLow, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
@@ -102,5 +120,101 @@ struct Paywall: View {
             .animation(.easeOut(duration: 0.2), value: selected)
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// A Pro feature: its picture on a quiet tile, then a title and a line about it.
+private struct FeatureTile<Picture: View>: View {
+    let title: String
+    let note: String
+    @ViewBuilder let picture: Picture
+    @Environment(\.palette) private var palette
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            picture
+                .frame(maxWidth: .infinity).frame(height: 56)
+                .background(palette.tile, in: RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
+            Text(title).font(Type.labelLarge)
+            Text(note).font(Type.labelSmall).foregroundStyle(palette.dim).lineLimit(2, reservesSpace: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(palette.background, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous).stroke(palette.softBorder, lineWidth: 1))
+    }
+}
+
+/// Three rows of dots, mostly filled: the wall a habit grows into.
+private struct MiniWall: View {
+    @Environment(\.palette) private var palette
+    private let pattern = [
+        "1101111011", "1110111101", "0111011111",
+    ]
+    var body: some View {
+        VStack(spacing: 3) {
+            ForEach(pattern, id: \.self) { row in
+                HStack(spacing: 3) {
+                    ForEach(Array(row.enumerated()), id: \.offset) { _, c in
+                        RoundedRectangle(cornerRadius: 2.5, style: .continuous).fill(c == "1" ? palette.ink : palette.tint).frame(width: 9, height: 9)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// The momentum ring from Statistics, small.
+private struct MiniRing: View {
+    @Environment(\.palette) private var palette
+    @State private var fill = 0.0
+    var body: some View {
+        ZStack {
+            Circle().stroke(palette.tint, lineWidth: 5)
+            Circle().trim(from: 0, to: fill).stroke(palette.ink, style: StrokeStyle(lineWidth: 5, lineCap: .round)).rotationEffect(.degrees(-90))
+            Text("97%").font(.system(size: 11, weight: .bold, design: .monospaced))
+        }
+        .frame(width: 40, height: 40)
+        .onAppear { withAnimation(.spring(response: 1, dampingFraction: 0.85).delay(0.2)) { fill = 0.97 } }
+    }
+}
+
+/// Two phones sharing one cloud.
+private struct MiniSync: View {
+    @Environment(\.palette) private var palette
+    var body: some View {
+        HStack(spacing: 8) {
+            phone
+            Image("Icons/ui-cloud").resizable().frame(width: 26, height: 26)
+            phone
+        }
+    }
+    private var phone: some View {
+        RoundedRectangle(cornerRadius: 4, style: .continuous).stroke(palette.ink, lineWidth: 1.5).frame(width: 14, height: 24)
+            .overlay(RoundedRectangle(cornerRadius: 1).fill(palette.ink).frame(width: 7, height: 7))
+    }
+}
+
+/// Swatches of the widget looks: Paper, Night, Glass, Terminal.
+private struct MiniLooks: View {
+    @Environment(\.palette) private var palette
+    var body: some View {
+        HStack(spacing: 6) {
+            swatch(fill: .white, dot: Color(hex: 0x37352F), border: palette.hairline)
+            swatch(fill: .black, dot: Color(hex: 0xD4D4D2), border: .clear)
+            swatch(fill: palette.ink.opacity(0.08), dot: palette.ink, border: palette.ink.opacity(0.25))
+            swatch(fill: .black, dot: Color(hex: 0xE3E2E0), border: .clear, square: true)
+        }
+    }
+    private func swatch(fill: Color, dot: Color, border: Color, square: Bool = false) -> some View {
+        RoundedRectangle(cornerRadius: 6, style: .continuous).fill(fill)
+            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(border, lineWidth: 1))
+            .overlay(
+                HStack(spacing: 2) {
+                    ForEach(0..<3, id: \.self) { i in
+                        RoundedRectangle(cornerRadius: square ? 0 : 1.5).fill(dot.opacity(i == 1 ? 0.4 : 1)).frame(width: 5, height: 5)
+                    }
+                }
+            )
+            .frame(width: 30, height: 30)
     }
 }

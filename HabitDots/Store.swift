@@ -94,6 +94,18 @@ final class Store {
 
     func price(_ id: String) -> String? { products[id]?.displayPrice }
 
+    /// The yearly price spread over twelve months, in the store's currency ("$1.00").
+    var monthlyOfYearly: String? {
+        guard let p = products[Self.yearly] else { return nil }
+        return p.priceFormatStyle.format(p.price / 12)
+    }
+
+    /// How many years of the yearly plan the lifetime price equals; the paywall's anchor.
+    var lifetimeInYears: Double? {
+        guard let y = products[Self.yearly]?.price, let l = products[Self.lifetime]?.price, y > 0 else { return nil }
+        return NSDecimalNumber(decimal: l / y).doubleValue
+    }
+
     /// Free trial length in days on the yearly plan, if offered.
     var trialDays: Int? {
         guard let offer = products[Self.yearly]?.subscription?.introductoryOffer, offer.paymentMode == .freeTrial else { return nil }
