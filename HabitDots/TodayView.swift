@@ -77,6 +77,12 @@ struct TodayView: View {
                 }
             }
             .animation(.easeOut(duration: 0.34), value: inbox)
+            // A sideways swipe switches pages like the pill does: left to the Inbox, right to Habits.
+            // Nearly vertical drags are left alone so the lists still scroll.
+            .simultaneousGesture(DragGesture(minimumDistance: 24).onEnded { g in
+                guard abs(g.translation.width) > abs(g.translation.height) * 1.5, abs(g.translation.width) > 56 else { return }
+                inbox = g.translation.width < 0
+            })
         }
         .background(palette.background)
         .overlay(alignment: .bottom) { Pill(inbox: $inbox).padding(.bottom, 8) }

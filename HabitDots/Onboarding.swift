@@ -323,7 +323,7 @@ private struct PickHabits: View {
                              fanned: picks.count > 1, today: today, width: 250, compact: true)
                             .frame(maxHeight: .infinity)
                     }
-                    // Free covers five; the limit shows here, on day one, not as a surprise later.
+                    // Free covers four; the limit shows here, on day one, not as a surprise later.
                     Text(picks.count >= Store.freeHabits && !pro ? "\(Store.freeHabits) habits on the free plan" : "Fewer is easier to keep.")
                         .font(Type.bodyMedium).foregroundStyle(palette.dim)
                         .opacity(picks.count > 3 ? 1 : 0)

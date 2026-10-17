@@ -31,6 +31,7 @@ UI = {
     "pencil-simple": "regular/pencil-simple.svg", "dots-three": "regular/dots-three.svg", "trash": "regular/trash.svg",
     "plus": "regular/plus.svg", "arrow-left": "regular/arrow-left.svg", "arrows-clockwise": "regular/arrows-clockwise.svg",
     "bell": "regular/bell.svg", "calendar-blank": "regular/calendar-blank.svg", "paper-plane-right": "regular/paper-plane-right.svg",
+    "trend-up": "regular/trend-up.svg", "trend-down": "regular/trend-down.svg", "minus": "regular/minus.svg",
 }
 
 root = pathlib.Path(__file__).resolve().parent.parent

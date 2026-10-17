@@ -44,7 +44,7 @@ YOUR DATA STAYS YOURS
 • Restore a backup from the HabitDots Android app
 
 HABITDOTS PRO
-• Unlimited habits (free covers 5)
+• Unlimited habits (free covers 4)
 • Sync between iPhone and Android with Apple or Google sign-in
 • Statistics
 • Widget looks and compact habit cards

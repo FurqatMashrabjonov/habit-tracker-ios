@@ -4,6 +4,7 @@ import CryptoKit
 import FirebaseCore
 import FirebaseAuth
 import FirebaseFirestore
+import FirebaseCrashlytics
 import GoogleSignIn
 import HabitData
 import HabitDomain
@@ -27,6 +28,12 @@ final class Sync {
         available = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") != nil
         guard available else { return }
         FirebaseApp.configure()
+        // Crash reports only (no analytics), and only from store builds: Xcode shows a dev crash better.
+        #if DEBUG
+        Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(false)
+        #else
+        Crashlytics.crashlytics().setCrashlyticsCollectionEnabled(true)
+        #endif
         let settings = Firestore.firestore().settings
         settings.cacheSettings = MemoryCacheSettings() // the database is the offline copy
         Firestore.firestore().settings = settings

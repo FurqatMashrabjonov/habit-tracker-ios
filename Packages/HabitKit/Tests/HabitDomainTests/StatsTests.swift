@@ -30,6 +30,34 @@ import Testing
         #expect(doneToday.current == 2)
     }
 
+    @Test func momentumIsTheLastThirtyDays() {
+        // Daily for 60 days: every day before the last 30 done, 24 of the last 30 (today included).
+        let done = Set((30..<60).map { today - $0 } + (0..<24).map { today - $0 })
+        let s = HabitStats(done: done, created: today - 59, rule: .daily, today: today)
+        #expect(abs(s.momentum - 24.0 / 30.0) < 1e-9)
+        #expect(s.momentumBefore == 1)
+        #expect(s.since == today - 59)
+    }
+
+    @Test func momentumStartsWhenTheHabitDoes() {
+        // Made 10 days ago and done every day since: a full score, not 10 of 30.
+        let done = Set((0..<10).map { today - $0 })
+        let s = HabitStats(done: done, created: today - 9, rule: .daily, today: today)
+        #expect(s.momentum == 1)
+        #expect(s.momentumBefore == nil)
+    }
+
+    @Test func weekdayRatesSkipOffDays() {
+        // Mon/Wed/Fri for two weeks from Monday Oct 5 (today is Thursday Oct 15): Mondays both done,
+        // Wednesdays one of two, Fridays none of one; Tuesday was never due.
+        let done: Set<Day> = [Day(2026, 10, 5), Day(2026, 10, 12), Day(2026, 10, 7)]
+        let s = HabitStats(done: done, created: Day(2026, 10, 5), rule: .weekdays([1, 3, 5]), today: today)
+        #expect(s.byWeekday[0] == 1)
+        #expect(s.byWeekday[1] == nil)
+        #expect(s.byWeekday[2] == 0.5)
+        #expect(s.byWeekday[4] == 0)
+    }
+
     @Test func twelveMonthsOldestFirst() {
         let s = HabitStats(done: [Day(2026, 10, 1), Day(2026, 10, 2), Day(2025, 11, 30), Day(2025, 10, 31)], created: Day(2025, 1, 1), rule: .daily, today: today)
         #expect(s.perMonth.count == 12)

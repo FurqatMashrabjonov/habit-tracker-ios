@@ -16,7 +16,7 @@ final class Store {
     init() {}
     static let yearly = "pro_yearly"
     static let lifetime = "pro_lifetime"
-    static let freeHabits = 5
+    static let freeHabits = 4
 
     /// Which plan is owned: `yearly`, `lifetime` or nil. Starts from the last known state, so an
     /// offline start doesn't lock a paying user out.
