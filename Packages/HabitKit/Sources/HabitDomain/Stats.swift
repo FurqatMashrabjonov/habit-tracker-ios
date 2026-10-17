@@ -16,11 +16,18 @@ public struct HabitStats: Equatable, Sendable {
     public let byWeekday: [Double?]
     /// First day counted: the earlier of the first done day and the day the habit was made.
     public let since: Day
+    /// The longest run of due days missed in a row, and the last day of it; nil when nothing was ever missed.
+    public let longestGap: Gap?
+
+    public struct Gap: Equatable, Sendable {
+        public let days: Int
+        public let end: Day
+    }
 
     public static func == (a: HabitStats, b: HabitStats) -> Bool {
         a.completions == b.completions && a.rate == b.rate && a.current == b.current && a.best == b.best
             && a.perMonth.map(\.count) == b.perMonth.map(\.count) && a.perMonth.map(\.month) == b.perMonth.map(\.month)
-            && a.momentum == b.momentum && a.momentumBefore == b.momentumBefore && a.byWeekday == b.byWeekday && a.since == b.since
+            && a.momentum == b.momentum && a.momentumBefore == b.momentumBefore && a.byWeekday == b.byWeekday && a.since == b.since && a.longestGap == b.longestGap
     }
 
     public init(done: Set<Day>, created: Day, rule: Schedule, today: Day, rest: Set<Day> = []) {
@@ -44,12 +51,19 @@ public struct HabitStats: Equatable, Sendable {
         let before = count(today - 59, today - 30)
         momentumBefore = before.due == 0 ? nil : share(before)
         var weekdayDone = [Int](repeating: 0, count: 7), weekdayDue = [Int](repeating: 0, count: 7)
+        // Off days neither break nor lengthen a gap; a done day ends it.
+        var gap: Gap? = nil, run = 0
         var d = since
         while d <= today {
             let w = d.weekday - 1
-            if done.contains(d) { weekdayDone[w] += 1; weekdayDue[w] += 1 } else if !skip(d) && d < today { weekdayDue[w] += 1 }
+            if done.contains(d) { weekdayDone[w] += 1; weekdayDue[w] += 1; run = 0 }
+            else if !skip(d) && d < today {
+                weekdayDue[w] += 1; run += 1
+                if run > (gap?.days ?? 0) { gap = Gap(days: run, end: d) }
+            }
             d = d + 1
         }
+        longestGap = gap
         byWeekday = (0..<7).map { weekdayDue[$0] == 0 ? nil : Double(weekdayDone[$0]) / Double(weekdayDue[$0]) }
         current = currentStreak(done, today: today, skip: skip)
         best = bestStreak(done, skip: skip)
