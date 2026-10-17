@@ -22,6 +22,13 @@ let partialAlpha = 0.55
 func partialOpacity(_ progress: Double) -> Double { firstAlpha + (partialAlpha - firstAlpha) * min(progress, 1) }
 
 public extension GraphicsContext {
+    /// A thin ring around a cell: marks today so the eye finds "now" in a wall of history.
+    func outlineCell(at origin: CGPoint, cell: CGFloat, color: Color, shape: DotShape = .square) {
+        let s = cell * shape.grow
+        let rect = CGRect(origin: origin, size: CGSize(width: s, height: s)).insetBy(dx: 0.75, dy: 0.75)
+        stroke(Path(roundedRect: rect, cornerRadius: s * shape.radius, style: .continuous), with: .color(color), lineWidth: 1.5)
+    }
+
     /// One day as a rounded square at `origin`, `cell` points wide.
     func drawCell(at origin: CGPoint, cell: CGFloat, progress: Double, color: Color, shape: DotShape = .square) {
         let s = cell * shape.grow // a pixel fills the gap to the next cell
@@ -38,7 +45,7 @@ public extension GraphicsContext {
 
     /// Cells for `from`...`last`, weeks as columns (`grid`) or one row. Step between cells is 1.2 × cell.
     func drawHeatmap(_ data: [Day: Double], color: Color, from: Day, last: Day, cell: CGFloat, grid: Bool = true,
-                     shape: DotShape = .square, todayValue: Double? = nil, today: Day? = nil) {
+                     shape: DotShape = .square, todayValue: Double? = nil, today: Day? = nil, markToday: Bool = false) {
         let origin = grid ? from.weekStart : from
         let step = cell * 1.2
         var date = from
@@ -46,7 +53,9 @@ public extension GraphicsContext {
             let i = date - origin
             let (c, r) = grid ? (i / 7, i % 7) : (i, 0)
             let value = (todayValue != nil && date == today) ? todayValue! : (data[date] ?? 0)
-            drawCell(at: CGPoint(x: CGFloat(c) * step, y: CGFloat(r) * step), cell: cell, progress: value, color: color, shape: shape)
+            let at = CGPoint(x: CGFloat(c) * step, y: CGFloat(r) * step)
+            drawCell(at: at, cell: cell, progress: value, color: color, shape: shape)
+            if markToday, date == today, value < 1 { outlineCell(at: at, cell: cell, color: color, shape: shape) }
             date = date + 1
         }
     }
@@ -59,11 +68,15 @@ public struct FitHeatmap: View, Animatable {
     public var targetCell: CGFloat = 11
     public var todayValue: Double? = nil
     public var onTap: ((Day) -> Void)? = nil
+    /// Faint month names over the first week of each month, and a ring on today's cell.
+    public var labels = false
     @Environment(\.palette) private var palette
 
-    public init(data: [Day: Double], today: Day, targetCell: CGFloat = 11, todayValue: Double? = nil, onTap: ((Day) -> Void)? = nil) {
-        self.data = data; self.today = today; self.targetCell = targetCell; self.todayValue = todayValue; self.onTap = onTap
+    public init(data: [Day: Double], today: Day, targetCell: CGFloat = 11, todayValue: Double? = nil, labels: Bool = false, onTap: ((Day) -> Void)? = nil) {
+        self.data = data; self.today = today; self.targetCell = targetCell; self.todayValue = todayValue; self.labels = labels; self.onTap = onTap
     }
+
+    private var top: CGFloat { labels ? 14 : 0 }
 
     /// Today's cell animates (a check fills it); the rest of the history is static.
     nonisolated public var animatableData: Double {
@@ -79,20 +92,34 @@ public struct FitHeatmap: View, Animatable {
     }
 
     public var body: some View {
-        HeightFromWidth(height: { Self.geometry(width: $0, target: targetCell).cell * 8.2 }) {
+        let top = top
+        HeightFromWidth(height: { Self.geometry(width: $0, target: targetCell).cell * 8.2 + top }) {
             GeometryReader { geo in
                 let (weeks, cell) = Self.geometry(width: geo.size.width, target: targetCell)
                 let start = today.weekStart - 7 * (weeks - 1)
+                let step = cell * 1.2
                 Canvas { ctx, _ in
-                    ctx.drawHeatmap(data, color: palette.ink, from: start, last: today, cell: cell, todayValue: todayValue, today: today)
+                    if labels {
+                        // A month label over the first week whose Monday is in a new month (not the cut-off first column).
+                        let font = Font.system(size: 9.5, weight: .medium, design: .monospaced)
+                        for w in 1..<max(weeks, 1) {
+                            let monday = start + 7 * w
+                            if monday.month != (monday - 7).month {
+                                ctx.draw(Text(Words.months[monday.month - 1].prefix(3)).font(font).foregroundStyle(palette.dim),
+                                         at: CGPoint(x: step * CGFloat(w), y: 5), anchor: .leading)
+                            }
+                        }
+                    }
+                    var body = ctx
+                    body.translateBy(x: 0, y: top)
+                    body.drawHeatmap(data, color: palette.ink, from: start, last: today, cell: cell, todayValue: todayValue, today: today, markToday: labels)
                 }
                 .contentShape(Rectangle())
                 // Without a day handler the wall is inert, so a tap on it reaches the card behind (opens the habit).
                 .allowsHitTesting(onTap != nil)
                 .onTapGesture { pos in
-                    let step = cell * 1.2
-                    let date = start + Int(pos.x / step) * 7 + Int(pos.y / step)
-                    if date <= today { onTap?(date) }
+                    let date = start + Int(pos.x / step) * 7 + Int((pos.y - top) / step)
+                    if pos.y >= top, date <= today { onTap?(date) }
                 }
             }
         }
@@ -117,22 +144,35 @@ public struct WeekStrip: View, Animatable {
     public let data: [Day: Double]
     public let today: Day
     public var todayValue: Double? = nil
+    /// Weekday letters under the cells and a ring on today's cell.
+    public var labels = false
     @Environment(\.palette) private var palette
-    public init(data: [Day: Double], today: Day, todayValue: Double? = nil) { self.data = data; self.today = today; self.todayValue = todayValue }
+    public init(data: [Day: Double], today: Day, todayValue: Double? = nil, labels: Bool = false) {
+        self.data = data; self.today = today; self.todayValue = todayValue; self.labels = labels
+    }
     nonisolated public var animatableData: Double {
         get { todayValue ?? 0 }
         set { if todayValue != nil { todayValue = newValue } }
     }
+    private var ratio: CGFloat { 7 * 1.2 - 0.2 }
     public var body: some View {
-        Canvas { ctx, size in
-            let cell = size.width / (7 * 1.2 - 0.2)
-            for i in 0..<7 {
-                let date = today - (6 - i)
-                let value = (todayValue != nil && date == today) ? todayValue! : (data[date] ?? 0)
-                ctx.drawCell(at: CGPoint(x: CGFloat(i) * cell * 1.2, y: 0), cell: cell, progress: value, color: palette.ink)
+        HeightFromWidth(height: { w in w / (7 * 1.2 - 0.2) + (labels ? 16 : 0) }) {
+            Canvas { ctx, size in
+                let cell = size.width / ratio
+                let font = Font.system(size: 10, weight: .medium, design: .monospaced)
+                for i in 0..<7 {
+                    let date = today - (6 - i)
+                    let value = (todayValue != nil && date == today) ? todayValue! : (data[date] ?? 0)
+                    let at = CGPoint(x: CGFloat(i) * cell * 1.2, y: 0)
+                    ctx.drawCell(at: at, cell: cell, progress: value, color: palette.ink)
+                    if labels {
+                        if date == today, value < 1 { ctx.outlineCell(at: at, cell: cell, color: palette.ink) }
+                        ctx.draw(Text(Words.weekdaysShort[date.weekday - 1]).font(font).foregroundStyle(date == today ? palette.ink : palette.dim),
+                                 at: CGPoint(x: at.x + cell / 2, y: cell + 9), anchor: .center)
+                    }
+                }
             }
         }
-        .aspectRatio(7 * 1.2 - 0.2, contentMode: .fit)
     }
 }
 

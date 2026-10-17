@@ -9,6 +9,14 @@ enum ThemeMode: String, CaseIterable { case system, light, dark
 /// Habit cards on the home screen: the full wall (free), the last week, or just name and check (Pro).
 enum CardStyle: String, CaseIterable { case wall, compact, minimal
     var label: String { switch self { case .wall: "Dot wall"; case .compact: "Last 7 days"; case .minimal: "Name only" } }
+    var note: String {
+        switch self {
+        case .wall: "Four months of history on every card."
+        case .compact: "This week, big enough to tap."
+        case .minimal: "Just the name, a week of dots and the check."
+        }
+    }
+    var pro: Bool { self != .wall }
 }
 
 /// Debug builds can pretend to own Pro (Settings), like the Android preview build.

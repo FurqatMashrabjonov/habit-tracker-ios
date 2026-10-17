@@ -134,7 +134,7 @@ struct TodayView: View {
                     .contentTransition(.opacity)
                 Spacer()
                 // How the cards look sits by the list it changes, not three taps away in Settings.
-                if !inbox { CardStyleSegments().transition(.opacity) }
+                if !inbox { CardStyleButton(sample: sorted.first).transition(.opacity) }
             }
             .frame(height: 48)
             .animation(.easeOut(duration: 0.22), value: inbox)
@@ -275,6 +275,8 @@ private struct Shift: ViewModifier {
 struct HabitCard: View {
     let row: HabitRow
     let today: Day
+    /// A fixed look (the style picker's previews); nil draws the chosen one.
+    var style: CardStyle? = nil
     let onToggle: () -> Void
     @Environment(\.palette) private var palette
     @Environment(Confetti.self) private var confetti
@@ -282,9 +284,13 @@ struct HabitCard: View {
     @AppStorage("cards") private var cards = CardStyle.wall
     private var pro: Bool { Store.shared.active }
 
+    /// Done days among the strip's seven, for "4/7 this week".
+    private var weekDone: Int { (0..<7).filter { row.progress(on: today - $0) >= 1 }.count }
+
     var body: some View {
         let t = row.tracker
         let done = row.progress(on: today) >= 1
+        let shown = style ?? (pro ? cards : .wall)
         VStack(spacing: 14) {
             HStack(spacing: 12) {
                 HabitIconTile(icon: t.icon)
@@ -292,17 +298,22 @@ struct HabitCard: View {
                     Text(t.name).font(Type.titleSmall).lineLimit(1)
                     HStack(spacing: 0) {
                         if row.mustNotMiss {
-                            Text("Don't miss today!")
+                            Text("Don't miss today!").fixedSize()
                         } else {
-                            StreakLabel(days: row.streak)
+                            StreakLabel(days: row.streak).fixedSize()
                         }
-                        if t.target > 1 { Text("  ·  \(min(row.todayCount, t.target))/\(t.target)") }
-                        if let cue = t.cue, !cue.isEmpty { Text("  ·  \(cue)").lineLimit(1) }
+                        if t.target > 1 { Text("  ·  \(min(row.todayCount, t.target))/\(t.target)").fixedSize() }
+                        // The week count only where it reads as one number (a counted habit already shows x/N).
+                        else if shown == .compact { Text("  ·  \(weekDone)/7 this week").fixedSize() }
+                        if let cue = t.cue, !cue.isEmpty { Text("  ·  \(cue)") }
                     }
+                    .lineLimit(1)
                     .font(Type.bodySmall)
                     .foregroundStyle(palette.dim)
                 }
-                Spacer(minLength: 0)
+                Spacer(minLength: 8)
+                // Name only still shows a week: seven tiny dots before the check.
+                if shown == .minimal { WeekStrip(data: row.progress, today: today, todayValue: todayCell).frame(width: 54) }
                 GeometryReader { geo in
                     CheckButton(done: done, count: row.todayCount, target: t.target, size: 30) {
                         if !done && row.todayCount + 1 >= t.target {
@@ -314,9 +325,9 @@ struct HabitCard: View {
                 }
                 .frame(width: 30, height: 30)
             }
-            switch pro ? cards : .wall {
-            case .wall: FitHeatmap(data: row.progress, today: today, targetCell: 15, todayValue: todayCell)
-            case .compact: WeekStrip(data: row.progress, today: today, todayValue: todayCell)
+            switch shown {
+            case .wall: FitHeatmap(data: row.progress, today: today, targetCell: 15, todayValue: todayCell, labels: true)
+            case .compact: WeekStrip(data: row.progress, today: today, todayValue: todayCell, labels: true)
             case .minimal: EmptyView()
             }
         }
@@ -374,45 +385,111 @@ struct AddButton: View {
 }
 
 /// Round header button with a soft press bounce.
-/// Icons in a capsule after the page title, like the Habits | Inbox pill: the dot wall, the last week,
-/// or name only. The last two need Pro and open the paywall until then.
-struct CardStyleSegments: View {
+/// A small round button after the page title that opens the card style picker.
+struct CardStyleButton: View {
+    let sample: HabitRow?
+    @State private var picking = false
+    @AppStorage("cards") private var cards = CardStyle.wall
+    @Environment(\.palette) private var palette
+    var body: some View {
+        Button { picking = true } label: {
+            Image("Icons/ui-cards-wall").resizable().frame(width: 16, height: 16)
+                .foregroundStyle(palette.dim)
+                .frame(width: 30, height: 30)
+                .background(palette.tile, in: Circle())
+        }
+        .buttonStyle(Bouncy(scale: 0.9))
+        .accessibilityLabel("Card style, \(cards.label)")
+        .sheet(isPresented: $picking) { CardStylePicker(sample: sample) }
+    }
+}
+
+/// Every card style drawn with the user's own first habit, so the choice is made by looking, not
+/// by reading. Pro styles carry a lock and open the paywall.
+struct CardStylePicker: View {
+    let sample: HabitRow?
     @AppStorage("cards") private var cards = CardStyle.wall
     @State private var store = Store.shared
     @State private var paywall = false
+    @Environment(AppModel.self) private var model
     @Environment(\.palette) private var palette
-
-    private func icon(_ s: CardStyle) -> String {
-        switch s { case .wall: "ui-cards-wall"; case .compact: "ui-cards-week"; case .minimal: "ui-cards-minimal" }
-    }
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        let styles = CardStyle.allCases
-        HStack(spacing: 0) {
-            ForEach(styles, id: \.self) { s in
-                let on = cards == s, locked = s != .wall && !store.active
-                Button {
-                    if locked { paywall = true } else { cards = s }
-                } label: {
-                    Image("Icons/\(icon(s))").resizable().frame(width: 16, height: 16)
-                        .foregroundStyle(on ? palette.onInk : locked ? palette.dim.opacity(0.55) : palette.dim)
-                        .frame(width: 38, height: 30)
-                        .contentShape(Capsule())
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 18) {
+                    ForEach(CardStyle.allCases, id: \.self) { s in
+                        let locked = s.pro && !store.active
+                        let on = cards == s
+                        Button {
+                            if locked { paywall = true; return }
+                            cards = s
+                            // Let the check land, then go: the list behind is already redrawn.
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { dismiss() }
+                        } label: {
+                            VStack(alignment: .leading, spacing: 10) {
+                                if let sample {
+                                    HabitCard(row: sample, today: model.today, style: s) {}
+                                        .allowsHitTesting(false)
+                                } else {
+                                    HabitCard(row: Self.demo(today: model.today), today: model.today, style: s) {}
+                                        .allowsHitTesting(false)
+                                }
+                                HStack(spacing: 10) {
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text(s.label).font(Type.titleSmall)
+                                        Text(s.note).font(Type.bodySmall).foregroundStyle(palette.dim)
+                                    }
+                                    Spacer()
+                                    if locked {
+                                        Label("Pro", image: "Icons/ui-lock-simple").font(Type.labelMedium).foregroundStyle(palette.dim)
+                                    } else {
+                                        ZStack {
+                                            Circle().fill(on ? palette.ink : .clear)
+                                            Circle().stroke(on ? .clear : palette.outline, lineWidth: 1.5)
+                                            if on { Image("Icons/ui-check").resizable().frame(width: 12, height: 12).foregroundStyle(palette.onInk) }
+                                        }
+                                        .frame(width: 22, height: 22)
+                                    }
+                                }
+                                .padding(.horizontal, 4)
+                            }
+                            .padding(10)
+                            .background(palette.background, in: RoundedRectangle(cornerRadius: Radius.medium + 6, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: Radius.medium + 6, style: .continuous)
+                                .stroke(on ? palette.ink : palette.hairline, lineWidth: on ? 2 : 1))
+                            .animation(.easeOut(duration: 0.2), value: on)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(s.label + (locked ? ", Pro" : on ? ", selected" : ""))
+                    }
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(s.label + (locked ? ", Pro" : ""))
-                .accessibilityAddTraits(on ? .isSelected : [])
+                .padding(16)
+            }
+            .background(palette.surfaceLow)
+            .navigationTitle("Card style")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button { dismiss() } label: { Image("Icons/ui-x").resizable().frame(width: 18, height: 18) }.accessibilityLabel("Close")
+                }
             }
         }
-        .background(alignment: .leading) {
-            Capsule().fill(palette.ink).frame(width: 38, height: 30)
-                .offset(x: CGFloat(styles.firstIndex(of: cards) ?? 0) * 38)
-                .animation(.spring(response: 0.3, dampingFraction: 0.75), value: cards)
-        }
-        .padding(3)
-        .background(palette.tile, in: Capsule())
-        .sensoryFeedback(.selection, trigger: cards)
+        .textCap()
+        .presentationCornerRadius(Radius.sheet)
         .sheet(isPresented: $paywall) { Paywall() }
+        .sensoryFeedback(.selection, trigger: cards)
+    }
+
+    /// With no habits yet, a sample one so the previews still mean something.
+    static func demo(today: Day) -> HabitRow {
+        var t = Tracker(name: "Read 20 pages", icon: "book-open")
+        t.cue = "Make time for a good book"
+        var progress: [Day: Double] = [:]
+        for i in 0..<120 where (i * 37) % 11 < 8 { progress[today - i] = 1 }
+        progress[today] = 0
+        return HabitRow(tracker: t, progress: progress, todayCount: 0, streak: 12, mustNotMiss: false)
     }
 }
 
