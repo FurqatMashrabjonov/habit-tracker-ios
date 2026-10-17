@@ -4,7 +4,7 @@ import HabitData
 import HabitDesign
 import HabitDomain
 
-/// HabitKit-like home, as on Android: round buttons on top (settings | stats, add), the page title,
+/// HabitKit-like home, as on Android: round buttons on top (settings | add), the page title,
 /// habit cards, and a floating glass pill at the bottom that switches between Habits and the Inbox.
 struct TodayView: View {
     @Environment(AppModel.self) private var model
@@ -14,7 +14,6 @@ struct TodayView: View {
     @State private var taskSheet: Task?
     @State private var settings = false
     @State private var path: [Int64] = []
-    @State private var stats = false
     // From a card's long-press menu.
     @State private var editHabit: Tracker?
     @State private var shareHabit: Tracker?
@@ -29,7 +28,6 @@ struct TodayView: View {
         NavigationStack(path: $path) {
             home
                 .toolbar(.hidden, for: .navigationBar)
-                .navigationDestination(isPresented: $stats) { StatsView() }
                 .navigationDestination(for: Int64.self) { id in
                     DetailView(id: id, store: model.store, today: model.today)
                         .navigationTransition(.zoom(sourceID: id, in: zoom))
@@ -57,7 +55,6 @@ struct TodayView: View {
             if args.contains("-add") { adding = true }
             if args.contains("-inbox") { inbox = true }
             if args.contains("-settings") { settings = true }
-            if args.contains("-stats") { stats = true }
             #if DEBUG
             // `-restore <path>` runs a restore on launch, to check it without tapping through Settings.
             if let i = args.firstIndex(of: "-restore"), i + 1 < args.count { try? model.restore(from: URL(fileURLWithPath: args[i + 1])) }
@@ -120,7 +117,6 @@ struct TodayView: View {
             HStack(spacing: 10) {
                 RoundIconButton(icon: "ui-gear-six", label: "Settings") { settings = true }
                 Spacer()
-                RoundIconButton(icon: "ui-chart-bar", label: "Statistics") { stats = true }
                 AddButton(label: inbox ? "New task" : "New habit") {
                     if inbox { var t = Task(title: ""); t.dueDate = model.today; taskSheet = t }
                     // A new habit past the free limit opens the paywall instead of the editor.

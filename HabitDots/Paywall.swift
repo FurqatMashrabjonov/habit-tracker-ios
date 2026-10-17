@@ -24,7 +24,7 @@ struct Paywall: View {
             Grid(horizontalSpacing: 10, verticalSpacing: 10) {
                 GridRow {
                     FeatureTile(title: "Unlimited habits", note: "As many walls as you like") { MiniWall() }
-                    FeatureTile(title: "Statistics", note: "Momentum, weekdays, milestones") { MiniRing() }
+                    FeatureTile(title: "Card styles", note: "Dot wall, Last 7 days, Name only") { MiniCards() }
                 }
                 GridRow {
                     FeatureTile(title: "Sync", note: "The same dots on every phone") { MiniSync() }
@@ -163,18 +163,15 @@ private struct MiniWall: View {
     }
 }
 
-/// The momentum ring from Statistics, small.
-private struct MiniRing: View {
+/// The three card styles as their miniature glyphs.
+private struct MiniCards: View {
     @Environment(\.palette) private var palette
-    @State private var fill = 0.0
     var body: some View {
-        ZStack {
-            Circle().stroke(palette.tint, lineWidth: 5)
-            Circle().trim(from: 0, to: fill).stroke(palette.ink, style: StrokeStyle(lineWidth: 5, lineCap: .round)).rotationEffect(.degrees(-90))
-            Text("97%").font(.system(size: 11, weight: .bold, design: .monospaced))
+        HStack(spacing: 6) {
+            ForEach(["ui-cards-wall", "ui-cards-week", "ui-cards-minimal"], id: \.self) { icon in
+                Image("Icons/\(icon)").resizable().frame(width: 22, height: 22).foregroundStyle(palette.ink)
+            }
         }
-        .frame(width: 40, height: 40)
-        .onAppear { withAnimation(.spring(response: 1, dampingFraction: 0.85).delay(0.2)) { fill = 0.97 } }
     }
 }
 
