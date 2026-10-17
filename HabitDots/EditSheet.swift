@@ -112,20 +112,18 @@ struct EditSheet: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .background(palette.surfaceLow)
+            // Pinned above the keyboard too, so saving never means finding the keyboard's Done first.
             .safeAreaInset(edge: .bottom) {
-                if focus == nil {
-                    Button(action: save) {
-                        Text("Save").font(Type.titleSmall).frame(maxWidth: .infinity).frame(height: 54)
-                            .foregroundStyle(canSave ? palette.onInk : palette.dim)
-                            .background(canSave ? palette.ink : palette.tileHigh, in: Capsule())
-                    }
-                    .disabled(!canSave)
-                    .buttonStyle(Bouncy(scale: 0.97))
-                    .padding(.horizontal, 16).padding(.bottom, 8)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                Button(action: save) {
+                    Text("Save").font(Type.titleSmall).frame(maxWidth: .infinity).frame(height: 54)
+                        .foregroundStyle(canSave ? palette.onInk : palette.dim)
+                        .background(canSave ? palette.ink : palette.tileHigh, in: Capsule())
                 }
+                .disabled(!canSave)
+                .buttonStyle(Bouncy(scale: 0.97))
+                .padding(.horizontal, 16).padding(.bottom, 8)
+                .background(palette.surfaceLow.opacity(0.92))
             }
-            .animation(.easeOut(duration: 0.2), value: focus == nil)
             .navigationTitle(isNew ? "New habit" : "Edit habit")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

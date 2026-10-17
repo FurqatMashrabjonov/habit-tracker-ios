@@ -159,8 +159,12 @@ struct TaskSheet: View {
                                  tint: Priority.alpha(priority))
                         }
                     }
+                    .padding(.trailing, 24) // room for the fade, so the last chip can scroll fully into view
                 }
                 .scrollIndicators(.hidden)
+                // The row is longer than the sheet: a fade at the end says so instead of a chip cut in half.
+                .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.88), .init(color: .clear, location: 1)],
+                                     startPoint: .leading, endPoint: .trailing))
                 Button(action: save) {
                     Image("Icons/ui-paper-plane-right").resizable().frame(width: 20, height: 20)
                         .foregroundStyle(canSave ? palette.onInk : palette.dim)
