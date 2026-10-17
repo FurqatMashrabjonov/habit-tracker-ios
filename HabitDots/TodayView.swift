@@ -69,20 +69,21 @@ struct TodayView: View {
     private var home: some View {
         VStack(spacing: 0) {
             header
-            ZStack {
-                if inbox {
-                    InboxView { taskSheet = $0 }.transition(.slide(-1))
-                } else {
-                    habits.transition(.slide(1))
+            // Habits and the Inbox sit side by side and page like Telegram's tabs: a swipe drags the
+            // next page in attached to the one leaving, and the pill scrolls there.
+            GeometryReader { geo in
+                ScrollView(.horizontal) {
+                    HStack(spacing: 0) {
+                        habits.frame(width: geo.size.width).id(0)
+                        InboxView { taskSheet = $0 }.frame(width: geo.size.width).id(1)
+                    }
+                    .scrollTargetLayout()
                 }
+                .scrollTargetBehavior(.paging)
+                .scrollIndicators(.hidden)
+                .scrollPosition(id: Binding<Int?>(get: { inbox ? 1 : 0 }, set: { if let v = $0 { inbox = v == 1 } }))
+                .animation(.spring(response: 0.38, dampingFraction: 0.86), value: inbox)
             }
-            .animation(.easeOut(duration: 0.34), value: inbox)
-            // A sideways swipe switches pages like the pill does: left to the Inbox, right to Habits.
-            // Nearly vertical drags are left alone so the lists still scroll.
-            .simultaneousGesture(DragGesture(minimumDistance: 24).onEnded { g in
-                guard abs(g.translation.width) > abs(g.translation.height) * 1.5, abs(g.translation.width) > 56 else { return }
-                inbox = g.translation.width < 0
-            })
         }
         .background(palette.background)
         .overlay(alignment: .bottom) { Pill(inbox: $inbox).padding(.bottom, 8) }
