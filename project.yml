@@ -36,6 +36,11 @@ targets:
         excludes: [Bundle.swift, "*.plist", "*.entitlements"]
     entitlements:
       path: HabitDots/HabitDots.entitlements
+      properties:
+        # The widgets read the database and the Pro flag from this group (HabitData/Shared.swift).
+        com.apple.security.application-groups: [group.app.habitdots]
+        # Sync signs in with Apple (Sync.swift); the App ID needs the capability too.
+        com.apple.developer.applesignin: [Default]
     dependencies:
       - package: HabitKit
         product: HabitDomain
@@ -106,6 +111,8 @@ targets:
       - path: Shared
     entitlements:
       path: HabitDotsWidget/HabitDotsWidget.entitlements
+      properties:
+        com.apple.security.application-groups: [group.app.habitdots]
     dependencies:
       - package: HabitKit
         product: HabitDomain
