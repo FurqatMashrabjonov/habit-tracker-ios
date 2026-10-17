@@ -68,9 +68,9 @@ final class DetailModel {
         }
     }
 
-    func archive() {
+    func setArchived(_ archived: Bool) {
         guard var t = state?.tracker else { return }
-        t.archived = true
+        t.archived = archived
         _Concurrency.Task { [t] in try? await store.save(t) }
     }
 }

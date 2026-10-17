@@ -340,6 +340,8 @@ struct InboxWidgetView: View {
                         WidgetCheck(done: false, tick: p.tick).frame(width: 24, height: 24)
                     }
                     .buttonStyle(.plain)
+                    // Todoist's priority flag, in the text ink: darker the more urgent.
+                    if let a = Priority.alpha(t.priority) { Image("Icons/flag").resizable().frame(width: 14, height: 14).foregroundStyle(p.text).opacity(a) }
                     Text(t.title).font(p.font(14)).lineLimit(1)
                     Spacer(minLength: 4)
                     // Overdue is bold ink, never red.

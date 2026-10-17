@@ -87,6 +87,8 @@ public struct FitHeatmap: View, Animatable {
                     ctx.drawHeatmap(data, color: palette.ink, from: start, last: today, cell: cell, todayValue: todayValue, today: today)
                 }
                 .contentShape(Rectangle())
+                // Without a day handler the wall is inert, so a tap on it reaches the card behind (opens the habit).
+                .allowsHitTesting(onTap != nil)
                 .onTapGesture { pos in
                     let step = cell * 1.2
                     let date = start + Int(pos.x / step) * 7 + Int(pos.y / step)

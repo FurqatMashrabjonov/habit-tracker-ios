@@ -31,7 +31,7 @@ struct SettingsSheet: View {
                 RowGroup {
                     NavRow(label: "Appearance", icon: "ui-palette-line", value: theme.label) { AppearancePage() }
                     NavRow(label: "Archive", icon: "ui-archive", value: "\(archived.count)") {
-                        ArchivedPage(archived: archived) { id in dismiss(); onOpenHabit(id) }
+                        ArchivedPage(archived: archived, onUnarchive: unarchive)
                     }
                     NavRow(label: "Recently deleted", icon: "ui-trash", value: "\(trash.count)") { TrashPage() }
                 }
@@ -65,13 +65,25 @@ struct SettingsSheet: View {
         .presentationCornerRadius(Radius.sheet)
         .presentationBackground(palette.surfaceLow)
         .sheet(isPresented: $paywall) { Paywall() }
-        .task {
-            let store = model.store
-            async let a = store.trackers(includeArchived: true)
-            async let t = store.trash()
-            archived = ((try? await a) ?? []).filter(\.archived)
-            trash = (try? await t) ?? []
-        }
+        .task { await load() }
+    }
+
+    private func load() async {
+        let store = model.store
+        async let a = store.trackers(includeArchived: true)
+        async let t = store.trash()
+        archived = ((try? await a) ?? []).filter(\.archived)
+        trash = (try? await t) ?? []
+    }
+
+    /// Back onto the home screen; past the free limit that's a Pro feature.
+    private func unarchive(_ t: Tracker) {
+        // The paywall has to be this sheet's own: one presented from the root can't show over Settings.
+        guard Store.shared.canAddHabit(activeHabits: model.rows?.count ?? 0) else { paywall = true; return }
+        var t = t
+        t.archived = false
+        let store = model.store
+        _Concurrency.Task { _ = try? await store.save(t); await load() }
     }
 
     private func open(_ url: String) { UIApplication.shared.open(URL(string: url)!) }
@@ -127,7 +139,7 @@ private struct AppearancePage: View {
 
 private struct ArchivedPage: View {
     let archived: [Tracker]
-    let onOpen: (Int64) -> Void
+    let onUnarchive: (Tracker) -> Void
     @Environment(\.palette) private var palette
     var body: some View {
         Page {
@@ -135,7 +147,9 @@ private struct ArchivedPage: View {
                 Text("Nothing archived. Archived habits keep their history and leave the home screen.")
                     .font(Type.bodyMedium).foregroundStyle(palette.dim).padding(4)
             } else {
-                RowGroup { ForEach(archived, id: \.uuid) { t in Row(label: t.name, icon: nil) { onOpen(t.id ?? 0) } } }
+                RowGroup { ForEach(archived, id: \.uuid) { t in Row(label: t.name, icon: nil, value: "Unarchive", chevron: false) { onUnarchive(t) } } }
+                Text("Tap a habit to bring it back to the home screen with its whole history.")
+                    .font(Type.bodySmall).foregroundStyle(palette.dim).padding(.horizontal, 4)
             }
         }
         .navigationTitle("Archive")

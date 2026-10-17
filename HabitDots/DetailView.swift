@@ -64,7 +64,14 @@ struct DetailView: View {
                 RoundIcon(icon: "ui-pencil-simple", label: "Edit") { editing = true }
                 Menu {
                     Button { sharing = true } label: { Label("Share", image: "Icons/ui-share-network") }
-                    Button { model.archive(); dismiss() } label: { Label("Archive", image: "Icons/ui-archive") }
+                    if t.archived {
+                        // Back onto the home screen; past the free limit that's a Pro feature.
+                        Button {
+                            if Store.shared.canAddHabit(activeHabits: app.rows?.count ?? 0) || Store.shared.require() { model.setArchived(false); dismiss() }
+                        } label: { Label("Unarchive", image: "Icons/ui-archive") }
+                    } else {
+                        Button { model.setArchived(true); dismiss() } label: { Label("Archive", image: "Icons/ui-archive") }
+                    }
                     Button(role: .destructive) { confirmDelete = true } label: { Label("Delete", image: "Icons/ui-trash") }
                 } label: { RoundIconLabel(icon: "ui-dots-three") }
                 .accessibilityLabel("Menu")
