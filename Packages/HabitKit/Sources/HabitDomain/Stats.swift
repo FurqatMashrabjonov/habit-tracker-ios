@@ -60,3 +60,14 @@ public struct HabitStats: Equatable, Sendable {
         }
     }
 }
+
+/// The last 30 days' rate on its own, for the home screen: done days over due days, today only once done.
+public func momentum(_ done: Set<Day>, today: Day, since: Day, skip: Skip) -> Double {
+    var hit = 0, due = 0
+    var d = max(today - 29, since)
+    while d <= today {
+        if done.contains(d) { hit += 1; due += 1 } else if !skip(d) && d < today { due += 1 }
+        d = d + 1
+    }
+    return due == 0 ? 0 : Double(hit) / Double(due)
+}

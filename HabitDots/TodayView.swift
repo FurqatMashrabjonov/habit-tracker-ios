@@ -134,7 +134,7 @@ struct TodayView: View {
                     .contentTransition(.opacity)
                 Spacer()
                 // How the cards look sits by the list it changes, not three taps away in Settings.
-                if !inbox { CardStyleButton(sample: sorted.first).transition(.opacity) }
+                if !inbox { CardStyleButton(sample: sorted.first, second: sorted.dropFirst().first).transition(.opacity) }
             }
             .frame(height: 48)
             .animation(.easeOut(duration: 0.22), value: inbox)
@@ -142,9 +142,13 @@ struct TodayView: View {
         .padding(.horizontal, 16)
     }
 
+    @AppStorage("cards") private var cardStyle = CardStyle.wall
+
     private var habits: some View {
-        ScrollView {
-            LazyVStack(spacing: 12) {
+        let tiled = cardStyle.tiled && Store.shared.active
+        return ScrollView {
+            // Rings sit two to a row; every other style is one card per row.
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: tiled ? 2 : 1), spacing: 12) {
                 if let rows = model.rows, rows.isEmpty { EmptyHabits { adding = true } }
                 ForEach(sorted) { row in
                     HabitCard(row: row, today: model.today) { model.toggle(row.tracker) }
@@ -287,11 +291,72 @@ struct HabitCard: View {
     /// Done days among the strip's seven, for "4/7 this week".
     private var weekDone: Int { (0..<7).filter { row.progress(on: today - $0) >= 1 }.count }
 
+    /// Done days this month over the days gone, for "14/17 in October".
+    private var monthDone: (done: Int, gone: Int) {
+        let first = today.withDay(1)
+        return ((0...(today - first)).filter { row.progress(on: first + $0) >= 1 }.count, today - first + 1)
+    }
+
     var body: some View {
+        let shown = style ?? (pro ? cards : .wall)
+        Group {
+            if shown.tiled { tile } else { card(shown) }
+        }
+        .background(palette.surfaceLow, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous).stroke(palette.softBorder, lineWidth: 1))
+        // Raw value: a rest day's -1 draws the dash.
+        .onAppear { todayCell = row.progress[today] ?? 0 }
+        .onChange(of: row.progress[today] ?? 0) { _, v in withAnimation(.easeInOut(duration: 0.45)) { todayCell = v } }
+    }
+
+    /// Two to a row: icon and a ring around the check, then name and streak. The ring is the last
+    /// 30 days; a counted habit's ring is today's count instead, since that is what the tap fills.
+    private var tile: some View {
         let t = row.tracker
         let done = row.progress(on: today) >= 1
-        let shown = style ?? (pro ? cards : .wall)
-        VStack(spacing: 14) {
+        let counted = t.target > 1
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                HabitIconTile(icon: t.icon, size: 40)
+                Spacer(minLength: 0)
+                GeometryReader { geo in
+                    ZStack {
+                        Circle().stroke(palette.tint, lineWidth: 4)
+                        Circle().trim(from: 0, to: counted ? min(Double(row.todayCount) / Double(t.target), 1) : row.momentum)
+                            .stroke(palette.ink, style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                            .animation(.spring(response: 0.6, dampingFraction: 0.85), value: counted ? Double(row.todayCount) : row.momentum)
+                        CheckButton(done: done, count: row.todayCount, target: t.target, size: 26) {
+                            if !done && row.todayCount + 1 >= t.target {
+                                let f = geo.frame(in: .global)
+                                confetti.fire(at: CGPoint(x: f.midX, y: f.midY))
+                            }
+                            onToggle()
+                        }
+                    }
+                }
+                .frame(width: 46, height: 46)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(t.name).font(Type.titleSmall).lineLimit(1)
+                HStack(spacing: 0) {
+                    if row.mustNotMiss { Text("Don't miss today!") } else { StreakLabel(days: row.streak) }
+                    if counted { Text("  ·  \(min(row.todayCount, t.target))/\(t.target)") }
+                    else { Text("  ·  \(Int((row.momentum * 100).rounded()))%") }
+                }
+                .lineLimit(1)
+                .font(Type.bodySmall)
+                .foregroundStyle(palette.dim)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func card(_ shown: CardStyle) -> some View {
+        let t = row.tracker
+        let done = row.progress(on: today) >= 1
+        return VStack(spacing: 14) {
             HStack(spacing: 12) {
                 HabitIconTile(icon: t.icon)
                 VStack(alignment: .leading, spacing: 2) {
@@ -303,8 +368,9 @@ struct HabitCard: View {
                             StreakLabel(days: row.streak).fixedSize()
                         }
                         if t.target > 1 { Text("  ·  \(min(row.todayCount, t.target))/\(t.target)").fixedSize() }
-                        // The week count only where it reads as one number (a counted habit already shows x/N).
+                        // The period count only where it reads as one number (a counted habit already shows x/N).
                         else if shown == .compact { Text("  ·  \(weekDone)/7 this week").fixedSize() }
+                        else if shown == .month { let m = monthDone; Text("  ·  \(m.done)/\(m.gone) in \(Words.months[today.month - 1])").fixedSize() }
                         if let cue = t.cue, !cue.isEmpty { Text("  ·  \(cue)") }
                     }
                     .lineLimit(1)
@@ -328,15 +394,19 @@ struct HabitCard: View {
             switch shown {
             case .wall: FitHeatmap(data: row.progress, today: today, targetCell: 15, todayValue: todayCell, labels: true)
             case .compact: WeekStrip(data: row.progress, today: today, todayValue: todayCell, labels: true)
-            case .minimal: EmptyView()
+            case .chain:
+                HStack(alignment: .lastTextBaseline, spacing: 6) {
+                    Text("\(row.streak)").font(Type.headlineMedium).contentTransition(.numericText(value: Double(row.streak)))
+                    Text(row.streak == 1 ? "day streak" : "day streak").font(Type.labelMedium).foregroundStyle(palette.dim)
+                    Spacer()
+                }
+                .animation(.default, value: row.streak)
+                ChainStrip(data: row.progress, today: today, todayValue: todayCell).padding(.top, -6)
+            case .month: MonthMini(data: row.progress, today: today, todayValue: todayCell)
+            case .minimal, .ring: EmptyView()
             }
         }
         .padding(14)
-        .background(palette.surfaceLow, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous).stroke(palette.softBorder, lineWidth: 1))
-        // Raw value: a rest day's -1 draws the dash.
-        .onAppear { todayCell = row.progress[today] ?? 0 }
-        .onChange(of: row.progress[today] ?? 0) { _, v in withAnimation(.easeInOut(duration: 0.45)) { todayCell = v } }
     }
 }
 
@@ -388,6 +458,7 @@ struct AddButton: View {
 /// A small round button after the page title that opens the card style picker.
 struct CardStyleButton: View {
     let sample: HabitRow?
+    var second: HabitRow? = nil
     @State private var picking = false
     @AppStorage("cards") private var cards = CardStyle.wall
     @Environment(\.palette) private var palette
@@ -400,7 +471,7 @@ struct CardStyleButton: View {
         }
         .buttonStyle(Bouncy(scale: 0.9))
         .accessibilityLabel("Card style, \(cards.label)")
-        .sheet(isPresented: $picking) { CardStylePicker(sample: sample) }
+        .sheet(isPresented: $picking) { CardStylePicker(sample: sample, second: second) }
     }
 }
 
@@ -408,6 +479,8 @@ struct CardStyleButton: View {
 /// by reading. Pro styles carry a lock and open the paywall.
 struct CardStylePicker: View {
     let sample: HabitRow?
+    /// A second habit for the two-up preview.
+    var second: HabitRow? = nil
     @AppStorage("cards") private var cards = CardStyle.wall
     @State private var store = Store.shared
     @State private var paywall = false
@@ -429,12 +502,15 @@ struct CardStylePicker: View {
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { dismiss() }
                         } label: {
                             VStack(alignment: .leading, spacing: 10) {
-                                if let sample {
-                                    HabitCard(row: sample, today: model.today, style: s) {}
-                                        .allowsHitTesting(false)
+                                let row = sample ?? Self.demo(today: model.today)
+                                if s.tiled {
+                                    HStack(spacing: 12) {
+                                        HabitCard(row: row, today: model.today, style: s) {}
+                                        HabitCard(row: second ?? row, today: model.today, style: s) {}
+                                    }
+                                    .allowsHitTesting(false)
                                 } else {
-                                    HabitCard(row: Self.demo(today: model.today), today: model.today, style: s) {}
-                                        .allowsHitTesting(false)
+                                    HabitCard(row: row, today: model.today, style: s) {}.allowsHitTesting(false)
                                 }
                                 HStack(spacing: 10) {
                                     VStack(alignment: .leading, spacing: 1) {

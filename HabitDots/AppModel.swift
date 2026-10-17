@@ -15,6 +15,8 @@ struct HabitRow: Identifiable, Equatable, Sendable {
     let mustNotMiss: Bool
     /// Today is a rest day.
     var resting = false
+    /// The last 30 days' rate (the ring cards).
+    var momentum: Double = 0
     var id: Int64 { tracker.id ?? 0 }
     /// A rest day reads as 0 here; the dot wall reads the raw -1 from `progress` to draw its dash.
     func progress(on day: Day) -> Double { max(progress[day] ?? 0, 0) }
@@ -120,7 +122,8 @@ final class AppModel {
                 todayCount: max(mine.first { $0.date == today }?.value ?? 0, 0),
                 streak: currentStreak(done, today: today, skip: skip),
                 mustNotMiss: mustNotMissToday(done, today: today, since: max(created, from), skip: skip),
-                resting: rest.contains(today)
+                resting: rest.contains(today),
+                momentum: momentum(done, today: today, since: min(created, done.min() ?? created), skip: skip)
             )
         }
     }
