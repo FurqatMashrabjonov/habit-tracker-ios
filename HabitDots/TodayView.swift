@@ -127,11 +127,15 @@ struct TodayView: View {
                 }
             }
             .padding(.vertical, 8)
-            Text(inbox ? "Inbox" : "Habits")
-                .font(Type.titleLarge)
-                .frame(height: 48)
-                .contentTransition(.opacity)
-                .animation(.easeOut(duration: 0.22), value: inbox)
+            HStack(spacing: 6) {
+                Text(inbox ? "Inbox" : "Habits")
+                    .font(Type.titleLarge)
+                    .contentTransition(.opacity)
+                // How the cards look sits by the list it changes, not three taps away in Settings.
+                if !inbox { CardStyleMenu().transition(.opacity) }
+            }
+            .frame(height: 48)
+            .animation(.easeOut(duration: 0.22), value: inbox)
         }
         .padding(.horizontal, 16)
     }
@@ -368,6 +372,34 @@ struct AddButton: View {
 }
 
 /// Round header button with a soft press bounce.
+/// A quiet button after the page title: pick the dot wall, the last week, or name only (the last two with Pro).
+struct CardStyleMenu: View {
+    @AppStorage("cards") private var cards = CardStyle.wall
+    @State private var store = Store.shared
+    @State private var paywall = false
+    @Environment(\.palette) private var palette
+    var body: some View {
+        Menu {
+            ForEach(CardStyle.allCases, id: \.self) { s in
+                Button {
+                    if s == .wall || store.active { cards = s } else { paywall = true }
+                } label: {
+                    if s != .wall && !store.active { Label(s.label + " · Pro", image: "Icons/ui-lock-simple") }
+                    else if cards == s { Label(s.label, image: "Icons/ui-check") }
+                    else { Text(s.label) }
+                }
+            }
+        } label: {
+            Image("Icons/ui-rows").resizable().frame(width: 16, height: 16)
+                .foregroundStyle(palette.dim)
+                .frame(width: 28, height: 28)
+                .background(palette.tile, in: Circle())
+        }
+        .accessibilityLabel("Card style, \(cards.label)")
+        .sheet(isPresented: $paywall) { Paywall() }
+    }
+}
+
 struct RoundIconButton: View {
     let icon: String
     let label: String
