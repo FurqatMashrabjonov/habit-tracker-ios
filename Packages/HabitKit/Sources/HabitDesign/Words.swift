@@ -1,3 +1,4 @@
+import Foundation
 import HabitDomain
 
 /// Names the app shows for dates and schedules. ponytail: English only, like the Android app.
@@ -6,8 +7,10 @@ public enum Words {
     public static let weekdaysShort = ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"]
     public static let weekdaysLong = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
-    /// "October 15"
-    public static func date(_ d: Day) -> String { "\(months[d.month - 1]) \(d.day)" }
+    /// "October 15", or "October 15, 2025" in another year: a year-old due date read like today.
+    public static func date(_ d: Day) -> String {
+        "\(months[d.month - 1]) \(d.day)" + (d.year != Calendar.current.component(.year, from: Date()) ? ", \(d.year)" : "")
+    }
 
     /// "Today", "Yesterday" or "Tuesday, October 14".
     public static func longDate(_ d: Day, today: Day) -> String {

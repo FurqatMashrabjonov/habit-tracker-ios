@@ -1,4 +1,4 @@
-# HabitDots handoff — 2026-10-18
+# HabitDots handoff — 2026-10-19
 
 Where both apps stand, what was decided, and what comes next. Same file in both repos.
 
@@ -7,55 +7,54 @@ Where both apps stand, what was decided, and what comes next. Same file in both 
 | | Android | iOS |
 |---|---|---|
 | Repo | `github.com/FurqatMashrabjonov/habit-tracker` | `github.com/FurqatMashrabjonov/habit-tracker-ios` |
-| Local path (old laptop) | `~/apps/habit-tracker` | `~/apps/habit-tracker-ios` |
+| Local path | `~/apps/habit/habit` | `~/apps/habit/habit-tracker-ios` |
 | Stack | Kotlin, Compose, Room v8 | SwiftUI, GRDB (same schema), XcodeGen (`project.yml`) |
 | Build | `./gradlew :app:installDebug` | `xcodegen generate` then `xcodebuild -project HabitDots.xcodeproj -scheme HabitDots -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build` |
 | Tests | `./gradlew :app:testDebugUnitTest` | `cd Packages/HabitKit && swift test` |
-| Latest commit | `9a14b52` | `2055ccc` |
 
-- **Firebase project** `habitdots-app`: Auth (Google provider only), Firestore `users/{uid}/habits`, `months`; Crashlytics (crash logs only, release builds). No Analytics.
-- **Gitignored secrets** you must recreate on the new machine: `app/google-services.json` (Android) and `HabitDots/GoogleService-Info.plist` (iOS). Get them from the Firebase console (project settings → your apps) or via the Firebase MCP tool `firebase_get_sdk_config`. Android does not compile without it (`default_web_client_id`).
-- **Android upload keystore** is in `~/.config/habitdots/` on the old laptop — copy it over, it is not in git.
+- **Firebase project** `habitdots-app`: Auth (Google only), Firestore `users/{uid}/habits`, `months`; Crashlytics (crash logs only, release builds). No Analytics.
+- **Gitignored secrets**: `app/google-services.json` (Android) and `HabitDots/GoogleService-Info.plist` (iOS). Both are present on this machine. The Android upload keystore is in `~/.config/habitdots/`.
 - **iOS signing**: `DEVELOPMENT_TEAM` is not set in `project.yml`; there is no Apple Developer account yet.
-- **QA harness** (`~/apps/habit-tracker-qa/2026-10-17/`, not in git): `adbui.py` (adb) and `idbui.py` (idb) drive emulator/simulator: dump/tap/xy/swipe/text/shot/rec/db. iOS debug launch args: `-demo`, `-paywall`, `-pretendPro YES|NO`, `-open <id>`, `-bottom`, `-restore <path>`, `-settings`, `-inbox`, `-add`. Android debug: Settings → "Pretend Pro".
-- Shared Room/GRDB schema: `tracker`, `entry` (value −1 = rest day), `task` (priority 1–4, 4 = none), `note`, `tombstone`, `trash`. Backups restore across platforms (verified both ways).
+- **Debug hooks**: iOS launch args `-demo`, `-paywall`, `-pretendPro YES|NO`, `-open <id>`, `-restore <path>`, `-settings`, `-inbox`, `-add`, `-onb <step>`. Android debug: Settings → "Pretend Pro".
+- **Installing a debug build beside the Play build** (Android): an init script that sets `applicationIdSuffix = '.preview'` on the debug build type gives `app.habitdots.preview` (its Firebase client exists in `google-services.json`). With `Pretend Pro` on and an account signed in, that build syncs to the real account: keep Pro off, or sign out, when loading test data.
+- Shared Room/GRDB schema: `tracker`, `entry` (value −1 = rest day), `task` (priority 1–4, 4 = none), `note`, `tombstone`, `trash`; `PRAGMA user_version = 8`. Backups restore across platforms (verified both ways, again on 2026-10-19).
 
-## What shipped this week (both platforms unless noted)
+## Pro and pricing (decided 2026-10-19, in the code)
 
-- Crashlytics; free habit limit 4 (`Pro.FREE_HABITS` / `Store.freeHabits`); momentum helper in domain.
-- Priority flags are ink shades (monochrome), `p1`–`p4` parsed from a task title.
-- Habits ↔ Inbox is a connected pager like Telegram tabs (swipe or the bottom pill).
-- **Card style picker**: one button beside the "Habits" title opens a sheet that previews every style with the user's own first habit. Three styles, upgraded: Dot wall (month labels, today ringed), Last 7 days (weekday letters, "N/7 this week"), Name only (micro week strip). Pref key `cards`; styles other than Dot wall are Pro-gated today (`CardStyle.pro`).
-- Sign-in is Google only (Apple sign-in removed from iOS; Firebase Auth has only the Google provider).
-- Archive/unarchive from Settings and from a habit's page; paywall from the Settings sheet works.
-- **Statistics screen removed** (both). The habit's own page (heatmap, streak, best, notes) is the statistics. Header is now: settings (left), add (right), card-style button beside the title. Paywall tile "Statistics" became "Card styles".
-- Reverted and kept only in git history (if ever wanted back): three extra card styles Rings/Chain/Month (`8e1a1dd` iOS, `87fd5f1` Android) and the Statistics "All" overview with perfect days, year in dots, insights (`4c1d069` iOS, `d401fc3` Android).
+- **Free**: everything you see — every card style, every widget look and layout, reminders, notes, Inbox, backup/restore/CSV, share cards — with up to **4 habits**. Never gate the user's own data.
+- **Pro** (four paywall tiles): **unlimited habits**, **evening check-in**, **sync**, **app icons**.
+  - *Evening check-in*: one notification at a chosen time (21:00 by default), only when some of today's habits are still open; nothing on days everything is done. Android decides at fire time (`task/EveningNudge.kt`). iOS schedules the next three evenings with the reminders and rebuilds them on every change; a check from a widget or a notification's Done redoes tonight's (`Shared/Nudge.swift`, `ReminderPlan.nudges`).
+  - *App icons*: Paper (default), Night, Mono, Dots. Android: one `activity-alias` per icon, exactly one enabled (`util/AppIcon.kt`); the launcher entry moved from `MainActivity` to `.IconPaper`, so testers' home-screen shortcuts may need re-adding once. iOS: alternate icon sets `AppIcon-*` with `ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS`.
+  - Signed in but Pro lapsed: the Sync page says sync is paused and offers Pro.
+- **Prices** (set by hand in the stores): Yearly **$7.99** with a 7-day trial (default choice), Lifetime **$19.99** as the hero, launch price **$14.99** until ~2027-01-31. No monthly. Regional prices by purchasing power: BR/TR/MX/KZ ~50%, IN/ID ~35%, UZ ~25–30% of the US price. Research and the full table: see the Pro research in the 2026-10-19 session.
+- **Next Pro candidates** (not built): sections (Morning/Evening), a year wall with a "2026 in dots" share card before the new year, later a web version.
 
-## Decisions (not implemented yet)
+## QA on 2026-10-19 (Samsung S22 + iPhone 17 Pro simulator)
 
-1. **Pro = unlimited habits + sync. Everything else free** — card styles, widget looks, reminders, backup/restore. Never gate export/import (user's own data). Keep the paywall promise "Tracking, widgets, reminders and your data stay free, with up to 4 habits."
-2. **Pricing**: Lifetime **$14.99** as the hero, launch price **$9.99** for the first 2–3 months (show the struck $14.99); Yearly **$5.99** with the 7-day trial. Turn on regional (storefront) pricing in both stores. Not lower than ~$10 lifetime: sync has a recurring Firestore cost per user.
-3. **iOS first for revenue, Android for reach.** Promote on X/indie community, r/iOSapps, Product Hunt, home-screen-setup content (widgets).
-4. Statistics stays removed. Card-style button placement is still open — see the header variants artifact below; candidate: variant 2 ("Habits ⌄", the title opens the picker, no extra button).
-5. Free habit limit stays 4; revisit after seeing purchase numbers (there is no analytics, only store purchase reports).
+Every flow was driven by script with screenshots: onboarding, home, detail, Inbox, Settings, widgets, backup/CSV, trash, time travel (midnight, +10 days, +1 month, +1 year, clock back), 40 habits with long/RTL/emoji names, 200 tasks, dark mode, large text. Plan: https://claude.ai/artifact/Thdxs8jsXEhLq3pD85CmkU
 
-## Store and payout facts (checked 2026-10-18)
+Fixed on both platforms: "Complete yesterday" only added one to a counter; a tap on a done counter raised it invisibly past the target (now clears like a check); restoring from Recently deleted skipped the free limit; "Don't miss today!" stayed after the streak was gone; an auto-backup date left in the future stopped automatic copies; old dates now show their year; share cards carry "HabitDots". Android only: weekday chips wrapped "Mo"/"We"; widgets showed yesterday for up to an hour after midnight without exact-alarm access (now a 10-minute window); the checklist widget shows "+N more"; heatmap month labels no longer run into the dots at large text. iOS only: a card stayed faded after its long-press menu (onDrag ran with no drop).
 
-- **Google Play**: Uzbekistan supports developer *and* merchant registration, payouts in USD (official list). Pro products `pro_yearly` (base plan `yearly`, 7-day trial) and `pro_lifetime` exist and were tested with a license tester.
-- **App Store**: in-app purchases go through Apple's IAP/StoreKit (not Apple Pay). Apple keeps 30%, or 15% after enrolling in the Small Business Program. Uzbekistan is an App Store storefront. Enrollment from Uzbekistan works but pay the $99 with an international Visa/Mastercard (a forum report shows a local card stalling for a month). Apple publishes no list of payout banks: after enrolling, search for your bank under Agreements → Banking; if it is not found, use a Payoneer or Wise USD receiving account. Fill W-8BEN.
-- **Play closed testing** started 2026-10-16 (opt-in https://play.google.com/apps/testing/app.habitdots). **Do not deploy anything before 2026-10-30**; apply for production on or after that date. 1.0.1 (versionCode 3, Google sign-in fix) is not uploaded yet — fold it into the production build with a new versionCode. The Play data-safety form must now declare crash logs (Crashlytics).
+Release-build performance (Android, 40 habits, a year of history): cold start 100–260 ms, 2% janky frames while scrolling, 143 MB.
+
+## Store and payout facts
+
+- **Google Play**: payouts approved to the Uzum Bank USD account (2026-10-19). Products `pro_yearly` (base plan `yearly`, 7-day trial) and `pro_lifetime` exist. The 15% service fee needs enrolling.
+- **App Store**: IAP via StoreKit; 15% after enrolling in the Small Business Program. Uzbekistan is a storefront; pay the $99 with an international card. For payouts try Uzum Bank USD first under Agreements → Banking, else Payoneer/Wise. Fill W-8BEN.
+- **Play closed testing** started 2026-10-16 (opt-in https://play.google.com/apps/testing/app.habitdots). **Apply for production on or after 2026-10-30.** 1.0.1 (versionCode 3, Google sign-in fix) was never uploaded: ship everything since in the production build with a new versionCode. The data-safety form must declare crash logs (Crashlytics).
 
 ## Next steps, in order
 
-1. **Implement the Pro plan** (both platforms): remove `CardStyle.pro` gating and the lock/Pro labels in the picker (`TodayView.swift` CardStylePicker / `TodayScreen.kt` CardStylePicker, `ThemePref.cards`), remove the widget-look gate, cut the paywall to two tiles (Unlimited habits, Sync) and update its copy and "pays off" line (`Paywall.swift`, `billing/Paywall.kt`, `Store.swift`, `billing/Pro.kt`, strings). Real prices are set in Play Console / App Store Connect by hand.
-2. Decide the card-style button placement (artifact) and apply it.
-3. iOS: Apple Developer account → `DEVELOPMENT_TEAM` in `project.yml` → TestFlight. Release build uploads dSYMs to Crashlytics (script in `project.yml`, only when the plist exists).
-4. Android, on/after 2026-10-30: production release with the sign-in fix, data-safety update, regional prices.
-5. Smaller open notes from the QA run: widget rows (N-10), counter reset (N-4), rest day via widget (N-25), CSV export (N-8); exact-alarm help, a11y labels, licenses screen (see `TODO.md` in the Android repo).
+1. Store setup by hand: Play 15% enrolment, new prices and regional prices in both stores, store descriptions for the new Pro.
+2. On/after 2026-10-30: Android production release (new versionCode, data safety, prices).
+3. iOS: Apple Developer account → `DEVELOPMENT_TEAM` → TestFlight; then check the widgets and the widget-side check-in refresh on a signed build (the unsigned simulator can't).
+4. Check by hand: drag-to-reorder on both phones (the iOS fix touched it).
+5. Open test issues: `HabitDotsTests/StoreTests` fails on this Mac's Xcode 27 StoreKit setup (also on commits from before 2026-10-19); `androidTrashSnapshotReads` in HabitKit is flaky.
+6. Smaller notes: the note field is a single line; CSV export leaves out counter values and rest days; unsaved edits are lost if Android kills the app; a database with an invalid time crashes on launch (only reachable through a hand-made file).
 
 ## Artifacts (private, claude.ai)
 
+- QA plan 2026-10-19: https://claude.ai/artifact/Thdxs8jsXEhLq3pD85CmkU
 - QA report with screenshots (2026-10-17): https://claude.ai/artifact/2vvVdYZj6sTdJKdHi1z7Ur
 - Habit card view variants: https://claude.ai/artifact/1V59pt4oT3oKQ5vgp5cTkr
-- Statistics page variants (now moot): https://claude.ai/artifact/BK81gnSJHP22V54vrLyy1b
-- Habits header variants (card-style button placement): https://claude.ai/artifact/Y8zpnzyVrRnkCcCuDdE9b2
+- Habits header variants (card-style button placement, still open): https://claude.ai/artifact/Y8zpnzyVrRnkCcCuDdE9b2

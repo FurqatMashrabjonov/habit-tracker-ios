@@ -408,11 +408,20 @@ struct SyncPage: View {
                     RowGroup { Row(label: "Get Pro", icon: "ui-sparkle-fill") { paywall = true } }
                 }
             } else {
+                // Signed in but Pro lapsed: say why nothing syncs, and offer Pro instead of a button that does nothing.
+                if !store.active {
+                    Text("Sync is paused: it's part of HabitDots Pro. Everything stays on this phone, and syncs again with Pro.")
+                        .font(Type.bodyMedium).foregroundStyle(palette.dim).padding(.horizontal, 4).padding(.bottom, 12)
+                }
                 GroupTitle("Account")
                 RowGroup {
                     Row(label: sync.email ?? "", icon: "ui-cloud", chevron: false) {}
-                    Row(label: "Sync now", value: sync.running ? "Syncing…" : sync.lastSynced.map { $0.formatted(.relative(presentation: .named)) } ?? "Never", chevron: false) {
-                        act("Sync failed", "Synced") { try await sync.manual() }
+                    if !store.active {
+                        Row(label: "Get Pro", icon: "ui-sparkle-fill") { paywall = true }
+                    } else {
+                        Row(label: "Sync now", value: sync.running ? "Syncing…" : sync.lastSynced.map { $0.formatted(.relative(presentation: .named)) } ?? "Never", chevron: false) {
+                            act("Sync failed", "Synced") { try await sync.manual() }
+                        }
                     }
                 }
                 Spacer().frame(height: 12)
