@@ -70,10 +70,13 @@ public struct FitHeatmap: View, Animatable {
     public var onTap: ((Day) -> Void)? = nil
     /// Faint month names over the first week of each month, and a ring on today's cell.
     public var labels = false
+    /// Today's dot pops (small, over, settle) the moment this turns true: a check landing on the wall.
+    public var popToday = false
     @Environment(\.palette) private var palette
+    @State private var pop: CGFloat = 1
 
-    public init(data: [Day: Double], today: Day, targetCell: CGFloat = 11, todayValue: Double? = nil, labels: Bool = false, onTap: ((Day) -> Void)? = nil) {
-        self.data = data; self.today = today; self.targetCell = targetCell; self.todayValue = todayValue; self.labels = labels; self.onTap = onTap
+    public init(data: [Day: Double], today: Day, targetCell: CGFloat = 11, todayValue: Double? = nil, labels: Bool = false, popToday: Bool = false, onTap: ((Day) -> Void)? = nil) {
+        self.data = data; self.today = today; self.targetCell = targetCell; self.todayValue = todayValue; self.labels = labels; self.popToday = popToday; self.onTap = onTap
     }
 
     private var top: CGFloat { labels ? 14 : 0 }
@@ -113,6 +116,19 @@ public struct FitHeatmap: View, Animatable {
                     var body = ctx
                     body.translateBy(x: 0, y: top)
                     body.drawHeatmap(data, color: palette.ink, from: start, last: today, cell: cell, todayValue: todayValue, today: today, markToday: labels)
+                    if pop != 1 {
+                        // Draw today's cell again, scaled about its centre, over the wall.
+                        let i = today - start, s = cell
+                        let c = CGPoint(x: CGFloat(i / 7) * step + s / 2, y: CGFloat(i % 7) * step + s / 2)
+                        var over = ctx
+                        over.translateBy(x: c.x, y: c.y + top); over.scaleBy(x: pop, y: pop); over.translateBy(x: -s / 2, y: -s / 2)
+                        over.drawCell(at: .zero, cell: s, progress: todayValue ?? data[today] ?? 1, color: palette.ink)
+                    }
+                }
+                .onChange(of: popToday) { _, on in
+                    guard on else { return }
+                    pop = 0.2
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.55)) { pop = 1 }
                 }
                 .contentShape(Rectangle())
                 // Without a day handler the wall is inert, so a tap on it reaches the card behind (opens the habit).

@@ -26,8 +26,8 @@ struct WidgetPalette {
     var receipt = false
 
     /// Without Pro every widget falls back to the free look; its settings are kept.
-    static func resolve(_ look: WidgetLook, darkText: Bool, scheme: ColorScheme) -> WidgetPalette {
-        let look = look.pro && !Shared.pro ? .auto : look
+    static func resolve(_ look: WidgetLook, darkText: Bool, scheme: ColorScheme, ignoringPro: Bool = false) -> WidgetPalette {
+        let look = look.pro && !Shared.pro && !ignoringPro ? .auto : look
         switch look {
         case .auto:
             let dark = scheme == .dark
@@ -162,7 +162,7 @@ struct HabitWidgetView: View {
     private var family: WidgetFamily { size ?? widgetFamily }
 
     var body: some View {
-        let p = WidgetPalette.resolve(entry.config.look, darkText: entry.config.darkText, scheme: scheme)
+        let p = WidgetPalette.resolve(entry.config.effectiveLook, darkText: entry.config.darkText, scheme: scheme)
         Group {
             if let h = entry.habit { content(h, p) } else {
                 Text("Add a habit in the app").font(p.font(12)).foregroundStyle(p.dim).frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -272,7 +272,7 @@ struct ChecklistView: View {
     private var family: WidgetFamily { size ?? widgetFamily }
 
     var body: some View {
-        let p = WidgetPalette.resolve(entry.config.look, darkText: entry.config.darkText, scheme: scheme)
+        let p = WidgetPalette.resolve(entry.config.effectiveLook, darkText: entry.config.darkText, scheme: scheme)
         let rows = entry.config.rows
         let counted = entry.habits.filter { !$0.off || $0.done }
         let limit = family == .systemLarge ? (p.receipt ? 7 : 8) : (p.receipt ? 2 : 3)
@@ -353,7 +353,7 @@ struct InboxWidgetView: View {
     private var family: WidgetFamily { size ?? widgetFamily }
 
     var body: some View {
-        let p = WidgetPalette.resolve(entry.config.look, darkText: entry.config.darkText, scheme: scheme)
+        let p = WidgetPalette.resolve(entry.config.effectiveLook, darkText: entry.config.darkText, scheme: scheme)
         let limit = family == .systemLarge ? (p.receipt ? 7 : 8) : (p.receipt ? 2 : 3)
         let now = Calendar.current.dateComponents([.hour, .minute], from: Date())
         VStack(alignment: .leading, spacing: 6) {

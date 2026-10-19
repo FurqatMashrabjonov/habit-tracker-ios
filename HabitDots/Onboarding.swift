@@ -15,7 +15,14 @@ struct OnboardingView: View {
     @State private var importing = false
     @State private var failed = false
     @State private var returning = false
-    private let steps = 3
+    /// The first pick, checked on step 3; written as the first entry when onboarding ends.
+    @State private var firstDone = false
+    /// The widget look picked on step 4; every widget starts in it.
+    @State private var look = WidgetLook.auto
+    /// The reminder picked on step 5, if any; applied to every habit.
+    @State private var reminder: ClockTime? = nil
+    @Namespace private var deck
+    private let steps = 5
 
     var body: some View {
         VStack(spacing: 0) {
@@ -32,8 +39,10 @@ struct OnboardingView: View {
             ZStack {
                 switch step {
                 case 0: Hero().transition(slide)
-                case 1: PickHabits(picks: $picks).transition(slide)
-                default: WidgetsStep(picked: picks.map { Template.all[$0] }).transition(slide)
+                case 1: PickHabits(picks: $picks, deck: deck).transition(slide)
+                case 2: FirstDot(template: Template.all[picks.first ?? 0], done: $firstDone).transition(slide)
+                case 3: LooksStep(template: Template.all[picks.first ?? 0], done: firstDone, look: $look).transition(slide)
+                default: WidgetsStep(picked: picks.map { Template.all[$0] }, look: look, reminder: $reminder).transition(slide)
                 }
             }
             .frame(maxHeight: .infinity)
@@ -56,6 +65,7 @@ struct OnboardingView: View {
                 switch step {
                 case 0: Button("I already use HabitDots") { returning = true }
                 case 1: Button("Start empty") { picks = []; finish() }
+                case 2: Button("Not yet, it's day one") { firstDone = false; forward = true; step += 1 }
                 default: EmptyView()
                 }
             }
@@ -108,21 +118,30 @@ struct OnboardingView: View {
         switch step {
         case 0: "Get started"
         case 1: picks.isEmpty ? "Pick at least one" : "Continue"
+        case 2: firstDone ? "Next" : "Done it today"
+        case 3: "Continue"
         default: "Start"
         }
     }
 
     private func finish() {
         let chosen = picks.map { Template.all[$0] }
-        let store = model.store
+        let store = model.store, today = model.today, done = firstDone, reminder = reminder
         _Concurrency.Task {
             for (order, tpl) in chosen.enumerated() {
                 var t = Tracker(name: "", icon: "")
                 tpl.apply(to: &t)
                 t.sortOrder = order
-                try? await store.save(t)
+                t.reminder = reminder
+                let saved = try? await store.save(t)
+                // The dot checked on step 3 is the first entry: the home screen opens at 1/N, not 0/N.
+                if order == 0, done, let saved { try? await store.quick(saved, on: today) }
             }
         }
+        // Every widget starts in the look picked on step 4 (Paper when Pro isn't active: the widget falls back).
+        Shared.defaults.set(look.rawValue, forKey: "onboardingLook")
+        // The 21:00 default is kept without a tap; ask here so it isn't saved silently with no permission.
+        if reminder != nil { Reminders.askPermission() }
         UserDefaults.standard.set(true, forKey: "onboarded")
         onDone()
     }
@@ -199,6 +218,8 @@ private struct DemoCard: View {
                         if streak > 0 { StreakLabel(days: streak) } else { Text("Day one") }
                     }
                     .font(Type.bodySmall).foregroundStyle(palette.dim)
+                    .contentTransition(.numericText())
+                    .animation(.easeOut(duration: 0.4), value: streak)
                 }
                 Spacer(minLength: 0)
                 GeometryReader { geo in
@@ -209,8 +230,9 @@ private struct DemoCard: View {
                 }
                 .frame(width: 28, height: 28)
             }
+            // Today's dot pops when the check lands: the wall is where a check goes.
             FitHeatmap(data: Dictionary(uniqueKeysWithValues: demo.done.map { ($0, 1.0) }), today: today,
-                       targetCell: compact ? 7 : 9, todayValue: check)
+                       targetCell: compact ? 7 : 9, todayValue: check, popToday: check >= 1)
         }
         .padding(14)
         .background(palette.surfaceLow, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
@@ -234,6 +256,8 @@ private struct Deck: View {
     var compact = false
     var frontCheck: Double = 0
     var onFrontCheck: ((CGPoint) -> Void)? = nil
+    /// With a namespace, a joining card flies in from the chip of the same name instead of from below.
+    var flyFrom: Namespace.ID? = nil
 
     var body: some View {
         ZStack {
@@ -243,6 +267,7 @@ private struct Deck: View {
                 DemoCard(demo: demo, today: today, compact: compact,
                          check: fromFront == 0 ? frontCheck : (demo.doneToday ? 1 : 0),
                          onCheck: fromFront == 0 ? onFrontCheck : nil)
+                    .modifier(FlyFrom(id: demo.name, in: flyFrom))
                     .frame(width: width)
                     .scaleEffect(fanned ? 0.94 : 1 - Double(fromFront) * 0.06)
                     // Fan around a point far below the cards, like a hand of playing cards.
@@ -254,6 +279,16 @@ private struct Deck: View {
         }
         .animation(.spring(response: 0.5, dampingFraction: 0.72), value: fanned)
         .animation(.spring(response: 0.55, dampingFraction: 0.7), value: cards.map(\.name))
+    }
+}
+
+/// matchedGeometryEffect only when there is a namespace to match in.
+private struct FlyFrom: ViewModifier {
+    let id: String
+    let ns: Namespace.ID?
+    init(id: String, in ns: Namespace.ID?) { self.id = id; self.ns = ns }
+    func body(content: Content) -> some View {
+        if let ns { content.matchedGeometryEffect(id: id, in: ns, isSource: true) } else { content }
     }
 }
 
@@ -301,6 +336,7 @@ private struct Hero: View {
 
 private struct PickHabits: View {
     @Binding var picks: [Int]
+    let deck: Namespace.ID
     @Environment(\.palette) private var palette
     private var pro: Bool { Store.shared.active }
     private let today = Day.today
@@ -319,7 +355,7 @@ private struct PickHabits: View {
                     } else {
                         // ponytail: only the last four picks are drawn; more would hide behind them.
                         Deck(cards: picks.suffix(4).map { DemoHabit(name: Template.all[$0].name, icon: Template.all[$0].icon) },
-                             fanned: picks.count > 1, today: today, width: 250, compact: true)
+                             fanned: picks.count > 1, today: today, width: 250, compact: true, flyFrom: deck)
                             .frame(maxHeight: .infinity)
                     }
                     // Free covers four; the limit shows here, on day one, not as a surprise later.
@@ -348,25 +384,183 @@ private struct PickHabits: View {
                         }
                         .buttonStyle(Bouncy(scale: 0.95))
                         .sensoryFeedback(.selection, trigger: on)
+                        // The chip is where its card flies in from.
+                        .matchedGeometryEffect(id: t.name, in: deck, isSource: !on)
                     }
                 }
                 .padding(.vertical, 16)
+                // Room under the last row, so every chip can scroll above the button.
+                .padding(.bottom, 80)
             }
         }
         .scrollIndicators(.hidden)
     }
 }
 
-// ---- Step 3: the widgets, on a home screen, with your habits in them. ----
+// ---- Step 3: your first habit, for real; the box is yours to tap. ----
+
+private struct FirstDot: View {
+    let template: Template
+    @Binding var done: Bool
+    @Environment(Confetti.self) private var confetti
+    @Environment(\.palette) private var palette
+    @State private var check = 0.0
+    @State private var ripple = false
+    private let today = Day.today
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Title(title: "Did you \(template.name.lowercased()) today?",
+                  text: done ? "That's your first dot. Tomorrow makes two." : "Tap the box if you have. If not, that's fine: it's day one.")
+            ZStack {
+                DemoCard(demo: DemoHabit(name: template.name, icon: template.icon), today: today, check: check,
+                         onCheck: check < 1 ? { at in tap(at) } : nil)
+                    .frame(width: 300)
+                // The first dot lands as a ripple across the empty wall: one wave out from today.
+                if ripple {
+                    Circle().stroke(palette.ink.opacity(0.35), lineWidth: 2).frame(width: 40, height: 40)
+                        .scaleEffect(3.2).opacity(0).offset(x: 110, y: 70)
+                        .animation(.easeOut(duration: 0.7), value: ripple)
+                }
+            }
+            .frame(maxHeight: .infinity)
+            Text(done ? "🔥 1 day streak" : " ")
+                .font(Type.titleSmall).foregroundStyle(palette.ink)
+                .opacity(done ? 1 : 0).offset(y: done ? 0 : 12)
+                .animation(.spring(response: 0.45, dampingFraction: 0.8), value: done)
+                .padding(.bottom, 16)
+        }
+        .onAppear { if done { check = 1 } }
+    }
+
+    private func tap(_ at: CGPoint) {
+        Celebrate(confetti: confetti)(at: at)
+        withAnimation(.linear(duration: 0.48)) { check = 1 }
+        ripple = true
+        done = true
+    }
+}
+
+// ---- Step 4: how the wall should look; the card changes its clothes in place. ----
+
+private struct LooksStep: View {
+    let template: Template
+    let done: Bool
+    @Binding var look: WidgetLook
+    @Environment(\.palette) private var palette
+    @Environment(\.colorScheme) private var scheme
+    @State private var store = Store.shared
+    private let today = Day.today
+    private let choices: [WidgetLook] = [.auto, .dotMatrix, .outline, .receipt]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Title(title: "How should it look?", text: "Your wall, your way. Change it any time.")
+            // The widget as it will sit on the home screen, in the chosen look, dots and all.
+            let p = WidgetPalette.resolve(look, darkText: false, scheme: scheme, ignoringPro: true)
+            LookCard(name: template.name, icon: template.icon, done: done, today: today, p: p)
+                .frame(width: 300, height: 170)
+                .frame(maxHeight: .infinity)
+            ScrollView(.horizontal) {
+                HStack(spacing: 10) {
+                    ForEach(choices, id: \.self) { l in
+                        let on = l == look
+                        let lp = WidgetPalette.resolve(l, darkText: false, scheme: scheme, ignoringPro: true)
+                        Button { look = l } label: {
+                            VStack(spacing: 6) {
+                                LookSwatch(p: lp).frame(width: 64, height: 44)
+                                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(on ? palette.ink : .clear, lineWidth: 2))
+                                HStack(spacing: 4) {
+                                    Text(lookName(l)).font(Type.labelMedium)
+                                    if l.pro && !store.active { Text("PRO").font(.system(size: 8, weight: .semibold, design: .monospaced)).foregroundStyle(palette.dim) }
+                                }
+                            }
+                        }
+                        .buttonStyle(Bouncy(scale: 0.95))
+                        .sensoryFeedback(.selection, trigger: on)
+                    }
+                }
+                .padding(.horizontal, 4).padding(.vertical, 8)
+            }
+            .scrollIndicators(.hidden)
+            Text(look.pro && !store.active ? "A Pro look: free for 7 days with a Pro trial. Widgets stay Paper without Pro." : " ")
+                .font(Type.bodySmall).foregroundStyle(palette.dim).frame(height: 32)
+                .animation(.easeOut(duration: 0.2), value: look)
+        }
+        .animation(.easeInOut(duration: 0.35), value: look)
+    }
+
+    private func lookName(_ l: WidgetLook) -> String {
+        switch l { case .auto: "Paper"; case .dotMatrix: "Dot matrix"; case .outline: "Outline"; case .receipt: "Receipt"; default: l.rawValue }
+    }
+}
+
+/// The medium widget drawn in a look: name and check, then a month of dots that morph with the look.
+private struct LookCard: View {
+    let name: String
+    let icon: String
+    let done: Bool
+    let today: Day
+    let p: WidgetPalette
+    var body: some View {
+        let data: [Day: Double] = done ? [today: 1] : [:]
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Text(name).font(p.font(14, .bold)).lineLimit(1)
+                Spacer(minLength: 4)
+                WidgetCheck(done: done, tick: p.tick).frame(width: 28, height: 28)
+            }
+            WidgetDots(data: data, today: today, shape: p.dots, ink: p.ink)
+        }
+        .padding(14)
+        .foregroundStyle(p.text)
+        .background(p.background, in: RoundedRectangle(cornerRadius: p.receipt ? 4 : 22, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: p.receipt ? 4 : 22, style: .continuous).stroke(p.outlineCard ? p.text : .clear, lineWidth: 1))
+        .shadow(color: .black.opacity(0.1), radius: 10, y: 4)
+    }
+}
+
+/// A look as a small card: a title line and five dots in its shape and ink.
+private struct LookSwatch: View {
+    let p: WidgetPalette
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            RoundedRectangle(cornerRadius: 2).fill(p.text).frame(width: 24, height: 4)
+            HStack(spacing: 3) {
+                ForEach(0..<5, id: \.self) { i in
+                    let on = i != 1 && i != 3
+                    let r = p.dots == .round ? 3.0 : p.dots == .pixel ? 0 : 1.5
+                    ZStack {
+                        if p.ink.outline && !on { RoundedRectangle(cornerRadius: r).stroke(p.text.opacity(0.45), lineWidth: 1) }
+                        else { RoundedRectangle(cornerRadius: r).fill(on ? p.text : p.text.opacity(0.16)) }
+                        if p.ink.glow && on { RoundedRectangle(cornerRadius: r).stroke(p.text.opacity(0.35), lineWidth: 2) }
+                    }
+                    .frame(width: 6, height: 6)
+                }
+            }
+        }
+        .padding(9)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(p.background, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(p.outlineCard ? p.text : .black.opacity(0.08), lineWidth: 1))
+    }
+}
+
+// ---- Step 5: the widgets, on a home screen, with your habits in them; then a reminder. ----
 
 private struct WidgetsStep: View {
     let picked: [Template]
+    let look: WidgetLook
+    @Binding var reminder: ClockTime?
     @Environment(Confetti.self) private var confetti
     @Environment(\.palette) private var palette
+    @Environment(\.colorScheme) private var scheme
     @State private var risen = [false, false, false]
     @State private var checks = [0.0, 0.0, 0.0]
     @State private var water = 0.0 // progress toward 3 of 3
+    @State private var askReminder = false
     private let today = Day.today
+    private let times: [(String, ClockTime?)] = [("08:00", ClockTime(8, 0)), ("21:00", ClockTime(21, 0)), ("Never", nil)]
 
     /// Your picks first, topped up with examples; water is the long row, done three times a day.
     private var rows: [(String, String)] {
@@ -377,17 +571,18 @@ private struct WidgetsStep: View {
     }
 
     var body: some View {
+        let p = WidgetPalette.resolve(look, darkText: false, scheme: scheme, ignoringPro: true)
         ScrollView {
             VStack(spacing: 0) {
                 Title(title: "On your home screen", text: "No need to open the app.")
                 VStack(spacing: 12) {
                     HStack(spacing: 12) {
                         ForEach(0..<2, id: \.self) { i in
-                            SmallWidgetMock(name: rows[i].0, icon: rows[i].1, seed: UInt64(i + 1), today: today, check: checks[i]) { at in fire(at, i) }
+                            SmallWidgetMock(name: rows[i].0, icon: rows[i].1, seed: UInt64(i + 1), today: today, check: checks[i], p: p) { at in fire(at, i) }
                                 .rising(risen[min(i, 1)])
                         }
                     }
-                    ChecklistMock(rows: rows, today: today, checks: checks, water: water).rising(risen[2])
+                    ChecklistMock(rows: rows, today: today, checks: checks, water: water, p: p).rising(risen[2])
                 }
                 .padding(14)
                 .background(LinearGradient(colors: [palette.ink.opacity(0.08), palette.ink.opacity(0.26)], startPoint: .top, endPoint: .bottom),
@@ -395,6 +590,28 @@ private struct WidgetsStep: View {
                 Text("Touch and hold your home screen, tap +, and find HabitDots.")
                     .font(Type.bodySmall).foregroundStyle(palette.dim).multilineTextAlignment(.center)
                     .padding(.top, 16)
+                // Once the widgets have checked themselves off: one reminder a day, and the system asks right after a time is picked.
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Remind me at").font(Type.labelLarge)
+                    HStack(spacing: 8) {
+                        ForEach(times, id: \.0) { t in
+                            let on = reminder == t.1 && (t.1 != nil || askReminder)
+                            Button {
+                                reminder = t.1
+                                if t.1 != nil { Reminders.askPermission() }
+                            } label: {
+                                Text(t.0).font(Type.labelLarge).frame(maxWidth: .infinity).frame(height: 40)
+                                    .foregroundStyle(on ? palette.onInk : palette.ink)
+                                    .background(on ? palette.ink : palette.background, in: Capsule())
+                                    .overlay(Capsule().stroke(on ? .clear : palette.softBorder, lineWidth: 1))
+                            }
+                            .buttonStyle(Bouncy(scale: 0.95))
+                        }
+                    }
+                }
+                .padding(.top, 20)
+                .opacity(askReminder ? 1 : 0).offset(y: askReminder ? 0 : 24)
+                .animation(.spring(response: 0.5, dampingFraction: 0.8), value: askReminder)
             }
         }
         .scrollIndicators(.hidden)
@@ -428,7 +645,11 @@ private struct WidgetsStep: View {
         await wait(450)
         withAnimation(.linear(duration: 0.48)) { water = 1 }
         Haptics.done()
+        await wait(600)
+        askReminder = true
+        if reminder == nil && !didSkipReminder { reminder = ClockTime(21, 0) }
     }
+    private var didSkipReminder: Bool { false }
 }
 
 private extension View {
@@ -442,22 +663,26 @@ private struct SmallWidgetMock: View {
     let seed: UInt64
     let today: Day
     let check: Double
+    let p: WidgetPalette
     let onCheck: (CGPoint) -> Void
-    @Environment(\.palette) private var palette
     var body: some View {
         let done = DemoHabit.doneDays(seed: seed, today: today, streak: 6)
+        var data = Dictionary(uniqueKeysWithValues: done.map { ($0, 1.0) })
+        let _ = { data[today] = check }()
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top) {
-                Text(name).font(Type.inter(12, .bold)).lineLimit(2)
+                Text(name).font(p.font(12, .bold)).lineLimit(2)
                 Spacer(minLength: 4)
-                CheckGlyph(t: check).frame(width: 26, height: 26)
+                WidgetCheck(done: check >= 1, partial: check < 1 ? check : 0, tick: p.tick).frame(width: 26, height: 26)
             }
             Spacer(minLength: 0)
-            FitHeatmap(data: Dictionary(uniqueKeysWithValues: done.map { ($0, 1.0) }), today: today, targetCell: 9, todayValue: check)
+            WidgetDots(data: data, today: today, shape: p.dots, maxCell: 9, ink: p.ink)
         }
         .padding(12)
+        .foregroundStyle(p.text)
         .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
-        .background(palette.background, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(p.background, in: RoundedRectangle(cornerRadius: p.receipt ? 4 : 22, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: p.receipt ? 4 : 22, style: .continuous).stroke(p.outlineCard ? p.text : .clear, lineWidth: 1))
     }
 }
 
@@ -467,30 +692,33 @@ private struct ChecklistMock: View {
     let today: Day
     let checks: [Double]
     let water: Double
-    @Environment(\.palette) private var palette
+    let p: WidgetPalette
     var body: some View {
         let done = checks.prefix(2).filter { $0 >= 1 }.count + (water >= 1 ? 1 : 0)
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Today").font(Type.inter(16, .bold))
+                Text("Today").font(p.font(16, .bold))
                 Spacer()
-                Text("\(done)/3").font(Type.inter(13, .bold)).foregroundStyle(palette.dim).contentTransition(.numericText())
+                Text("\(done)/3").font(p.font(13, .bold)).foregroundStyle(p.dim).contentTransition(.numericText())
             }
             row("Drink water", "drop", t: water >= 1 ? 1 : 0, partial: water < 1 ? water : 0, extra: "\(Int((water * 3).rounded()))/3")
             ForEach(0..<2, id: \.self) { i in row(rows[i].0, rows[i].1, t: checks[i], partial: 0, extra: nil) }
         }
         .padding(14)
-        .background(palette.background, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .foregroundStyle(p.text)
+        .background(p.background, in: RoundedRectangle(cornerRadius: p.receipt ? 4 : 22, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: p.receipt ? 4 : 22, style: .continuous).stroke(p.outlineCard ? p.text : .clear, lineWidth: 1))
         .animation(.default, value: done)
     }
 
     private func row(_ name: String, _ icon: String, t: Double, partial: Double, extra: String?) -> some View {
         HStack(spacing: 10) {
-            HabitIconTile(icon: icon, size: 30)
-            Text(name).font(Type.bodyMedium).lineLimit(1)
-            if let extra { Text(extra).font(Type.bodySmall).foregroundStyle(palette.dim) }
+            Image("Icons/\(icon)").resizable().frame(width: 17, height: 17).frame(width: 30, height: 30)
+                .background(p.tile, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            Text(name).font(p.font(14)).lineLimit(1)
+            if let extra { Text(extra).font(p.font(12)).foregroundStyle(p.dim) }
             Spacer()
-            CheckGlyph(t: t, partial: partial).frame(width: 28, height: 28)
+            WidgetCheck(done: t >= 1, partial: partial, tick: p.tick).frame(width: 28, height: 28)
         }
     }
 }
