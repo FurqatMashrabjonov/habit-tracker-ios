@@ -115,8 +115,18 @@ struct ChecklistConfig: WidgetConfigurationIntent {
     @Parameter(title: "Dark text", default: false) var darkText: Bool
 }
 
+/// Every open task, or only one-off tasks due today and overdue (as on Android).
+enum InboxShowOption: String, AppEnum {
+    case inbox, today
+    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Show"
+    static let caseDisplayRepresentations: [InboxShowOption: DisplayRepresentation] = [
+        .inbox: "Inbox", .today: "Today",
+    ]
+}
+
 struct InboxConfig: WidgetConfigurationIntent {
     static let title: LocalizedStringResource = "Inbox"
+    @Parameter(title: "Show", default: .inbox) var show: InboxShowOption
     @Parameter(title: "Look", default: .auto) var look: WidgetLook
     @Parameter(title: "Dark text", default: false) var darkText: Bool
 }

@@ -330,8 +330,11 @@ struct InboxProvider: AppIntentTimelineProvider {
     }
     func timeline(for config: InboxConfig, in context: Context) async -> Timeline<InboxEntry> { untilMidnight(await entry(config)) }
     private func entry(_ config: InboxConfig) async -> InboxEntry {
-        let tasks = (try? await Snapshot.store()?.db.read { try HabitStore.openTasks(in: $0) }) ?? []
-        return InboxEntry(date: Date(), today: .today, tasks: tasks ?? [], config: config)
+        let all = ((try? await Snapshot.store()?.db.read { try HabitStore.openTasks(in: $0) }) ?? []) ?? []
+        let today = Day.today
+        // Today: one-off tasks due today or overdue; repeating ones stay out (as on Android).
+        let tasks = config.show == .inbox ? all : all.filter { $0.repeat == nil && $0.dueDate.map { $0 <= today } == true }
+        return InboxEntry(date: Date(), today: today, tasks: tasks, config: config)
     }
 }
 
@@ -358,7 +361,7 @@ struct InboxWidgetView: View {
         let now = Calendar.current.dateComponents([.hour, .minute], from: Date())
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("Inbox").font(p.font(15, .bold))
+                Text(entry.config.show == .inbox ? "Inbox" : "Today").font(p.font(15, .bold))
                 Text("\(entry.tasks.count)").font(p.font(13, .bold)).foregroundStyle(p.dim)
                 Spacer()
                 Link(destination: URL(string: "habitdots://add-task")!) {
@@ -367,7 +370,7 @@ struct InboxWidgetView: View {
                 }
             }
             if entry.tasks.isEmpty {
-                Text("No tasks").font(p.font(13)).foregroundStyle(p.dim).frame(maxWidth: .infinity, maxHeight: .infinity)
+                Text(entry.config.show == .inbox ? "No tasks" : "All clear for today").font(p.font(13)).foregroundStyle(p.dim).frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             ForEach(entry.tasks.prefix(limit), id: \.id) { t in
                 let overdue = t.overdue(today: entry.today, now: ClockTime(now.hour ?? 0, now.minute ?? 0))
