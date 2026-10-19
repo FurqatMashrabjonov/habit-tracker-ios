@@ -75,14 +75,6 @@ private extension View {
     }
 }
 
-/// The Receipt look's header line above a widget's content; nothing for other looks.
-private struct LookHeader: View {
-    let p: WidgetPalette
-    var body: some View {
-        if p.receipt { Text("* HABITDOTS *").font(p.font(9)).foregroundStyle(p.dim).frame(maxWidth: .infinity).padding(.bottom, 2) }
-    }
-}
-
 /// The Receipt look's dashed total line under a list; nothing for other looks.
 private struct LookFooter: View {
     let p: WidgetPalette
@@ -184,7 +176,6 @@ struct HabitWidgetView: View {
     private func content(_ h: HabitSnap, _ p: WidgetPalette) -> some View {
         let layout = entry.config.layout
         VStack(alignment: .leading, spacing: 8) {
-            LookHeader(p: p)
             HStack(alignment: .center, spacing: 8) {
                 if family != .systemSmall { IconTile(icon: h.icon, size: 30, p: p) }
                 VStack(alignment: .leading, spacing: 1) {
@@ -286,7 +277,6 @@ struct ChecklistView: View {
         let counted = entry.habits.filter { !$0.off || $0.done }
         let limit = family == .systemLarge ? (p.receipt ? 7 : 8) : (p.receipt ? 2 : 3)
         VStack(alignment: .leading, spacing: 6) {
-            LookHeader(p: p)
             HStack {
                 Text("Today").font(p.font(15, .bold))
                 Spacer()
@@ -367,7 +357,6 @@ struct InboxWidgetView: View {
         let limit = family == .systemLarge ? (p.receipt ? 7 : 8) : (p.receipt ? 2 : 3)
         let now = Calendar.current.dateComponents([.hour, .minute], from: Date())
         VStack(alignment: .leading, spacing: 6) {
-            LookHeader(p: p)
             HStack {
                 Text("Inbox").font(p.font(15, .bold))
                 Text("\(entry.tasks.count)").font(p.font(13, .bold)).foregroundStyle(p.dim)
