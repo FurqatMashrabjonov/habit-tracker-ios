@@ -278,7 +278,6 @@ struct HabitCard: View {
     @Environment(Confetti.self) private var confetti
     @State private var todayCell: Double = 0
     @AppStorage("cards") private var cards = CardStyle.wall
-    private var pro: Bool { Store.shared.active }
 
     /// Done days among the strip's seven, for "4/7 this week".
     private var weekDone: Int { (0..<7).filter { row.progress(on: today - $0) >= 1 }.count }
@@ -286,7 +285,7 @@ struct HabitCard: View {
     var body: some View {
         let t = row.tracker
         let done = row.progress(on: today) >= 1
-        let shown = style ?? (pro ? cards : .wall)
+        let shown = style ?? cards
         VStack(spacing: 14) {
             HStack(spacing: 12) {
                 HabitIconTile(icon: t.icon)
@@ -416,10 +415,8 @@ struct CardStylePicker: View {
             ScrollView {
                 VStack(spacing: 18) {
                     ForEach(CardStyle.allCases, id: \.self) { s in
-                        let locked = s.pro && !store.active
                         let on = cards == s
                         Button {
-                            if locked { paywall = true; return }
                             cards = s
                             // Let the check land, then go: the list behind is already redrawn.
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { dismiss() }
@@ -438,16 +435,12 @@ struct CardStylePicker: View {
                                         Text(s.note).font(Type.bodySmall).foregroundStyle(palette.dim)
                                     }
                                     Spacer()
-                                    if locked {
-                                        Label("Pro", image: "Icons/ui-lock-simple").font(Type.labelMedium).foregroundStyle(palette.dim)
-                                    } else {
-                                        ZStack {
-                                            Circle().fill(on ? palette.ink : .clear)
-                                            Circle().stroke(on ? .clear : palette.outline, lineWidth: 1.5)
-                                            if on { Image("Icons/ui-check").resizable().frame(width: 12, height: 12).foregroundStyle(palette.onInk) }
-                                        }
-                                        .frame(width: 22, height: 22)
+                                    ZStack {
+                                        Circle().fill(on ? palette.ink : .clear)
+                                        Circle().stroke(on ? .clear : palette.outline, lineWidth: 1.5)
+                                        if on { Image("Icons/ui-check").resizable().frame(width: 12, height: 12).foregroundStyle(palette.onInk) }
                                     }
+                                    .frame(width: 22, height: 22)
                                 }
                                 .padding(.horizontal, 4)
                             }
@@ -458,7 +451,7 @@ struct CardStylePicker: View {
                             .animation(.easeOut(duration: 0.2), value: on)
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel(s.label + (locked ? ", Pro" : on ? ", selected" : ""))
+                        .accessibilityLabel(s.label + (on ? ", selected" : ""))
                     }
                 }
                 .padding(16)

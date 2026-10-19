@@ -18,23 +18,19 @@ struct Paywall: View {
         ScrollView {
         VStack(alignment: .leading, spacing: 14) {
             Text("HabitDots Pro").font(Type.headlineSmall)
-            Text("Tracking, widgets, reminders and your data stay free, with up to \(Store.freeHabits) habits. Pro adds:")
+            Text("Everything you see is free: card styles, widgets, reminders and your data, with up to \(Store.freeHabits) habits. Pro adds:")
                 .font(Type.bodyMedium).foregroundStyle(palette.dim)
             // What you get, drawn: a tile per feature with a small picture of it.
             Grid(horizontalSpacing: 10, verticalSpacing: 10) {
                 GridRow {
                     FeatureTile(title: "Unlimited habits", note: "As many walls as you like") { MiniWall() }
-                    FeatureTile(title: "Card styles", note: "Dot wall, Last 7 days, Name only") { MiniCards() }
-                }
-                GridRow {
                     FeatureTile(title: "Sync", note: "The same dots on every phone") { MiniSync() }
-                    FeatureTile(title: "Widget looks", note: "Clear, Glass, Terminal, layouts") { MiniLooks() }
                 }
             }
             HStack(spacing: 10) {
-                plan(Store.yearly, "Yearly", store.price(Store.yearly) ?? "$11.99",
-                     trial.map { "\($0) days free" }, (store.monthlyOfYearly ?? "$1.00") + " / month")
-                plan(Store.lifetime, "Lifetime", store.price(Store.lifetime) ?? "$29.99",
+                plan(Store.yearly, "Yearly", store.price(Store.yearly) ?? "$7.99",
+                     trial.map { "\($0) days free" }, (store.monthlyOfYearly ?? "$0.67") + " / month")
+                plan(Store.lifetime, "Lifetime", store.price(Store.lifetime) ?? "$19.99",
                      "Pay once", "Pays off in \(Self.years(store.lifetimeInYears ?? 2.5)) years, then it's yours")
             }
             .fixedSize(horizontal: false, vertical: true)
@@ -163,18 +159,6 @@ private struct MiniWall: View {
     }
 }
 
-/// The three card styles as their miniature glyphs.
-private struct MiniCards: View {
-    @Environment(\.palette) private var palette
-    var body: some View {
-        HStack(spacing: 6) {
-            ForEach(["ui-cards-wall", "ui-cards-week", "ui-cards-minimal"], id: \.self) { icon in
-                Image("Icons/\(icon)").resizable().frame(width: 22, height: 22).foregroundStyle(palette.ink)
-            }
-        }
-    }
-}
-
 /// Two phones sharing one cloud.
 private struct MiniSync: View {
     @Environment(\.palette) private var palette
@@ -191,27 +175,3 @@ private struct MiniSync: View {
     }
 }
 
-/// Swatches of the widget looks: Paper, Night, Glass, Terminal.
-private struct MiniLooks: View {
-    @Environment(\.palette) private var palette
-    var body: some View {
-        HStack(spacing: 6) {
-            swatch(fill: .white, dot: Color(hex: 0x37352F), border: palette.hairline)
-            swatch(fill: .black, dot: Color(hex: 0xD4D4D2), border: .clear)
-            swatch(fill: palette.ink.opacity(0.08), dot: palette.ink, border: palette.ink.opacity(0.25))
-            swatch(fill: .black, dot: Color(hex: 0xE3E2E0), border: .clear, square: true)
-        }
-    }
-    private func swatch(fill: Color, dot: Color, border: Color, square: Bool = false) -> some View {
-        RoundedRectangle(cornerRadius: 6, style: .continuous).fill(fill)
-            .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(border, lineWidth: 1))
-            .overlay(
-                HStack(spacing: 2) {
-                    ForEach(0..<3, id: \.self) { i in
-                        RoundedRectangle(cornerRadius: square ? 0 : 1.5).fill(dot.opacity(i == 1 ? 0.4 : 1)).frame(width: 5, height: 5)
-                    }
-                }
-            )
-            .frame(width: 30, height: 30)
-    }
-}

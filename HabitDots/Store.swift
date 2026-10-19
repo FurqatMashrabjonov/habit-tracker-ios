@@ -1,6 +1,5 @@
 import Foundation
 import StoreKit
-import WidgetKit
 import HabitData
 
 /// HabitDots Pro: unlimited habits, sync, statistics and widget looks. Free covers everything else
@@ -119,12 +118,7 @@ final class Store {
         }
     }
 
-    /// The widgets read Pro from the shared folder.
     private func publish() {
-        if Shared.pro != active {
-            Shared.pro = active
-            WidgetCenter.shared.reloadAllTimelines()
-        }
         if active { paywall = false }
     }
 }

@@ -126,9 +126,7 @@ private struct AppearancePage: View {
             GroupTitle("Habit cards")
             RowGroup {
                 ForEach(CardStyle.allCases, id: \.self) { s in
-                    Row(label: s.label, value: s != .wall && !Store.shared.active ? "Pro" : nil, chevron: false, checked: cards == s) {
-                        if s == .wall || Store.shared.active { cards = s } else { paywall = true }
-                    }
+                    Row(label: s.label, chevron: false, checked: cards == s) { cards = s }
                 }
             }
         }

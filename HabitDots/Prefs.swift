@@ -16,7 +16,6 @@ enum CardStyle: String, CaseIterable { case wall, compact, minimal
         case .minimal: "Just the name, a week of dots and the check."
         }
     }
-    var pro: Bool { self != .wall }
 }
 
 /// Debug builds can pretend to own Pro (Settings), like the Android preview build.

@@ -28,14 +28,6 @@ public enum Shared {
 
     public static var databasePath: String { directory.appendingPathComponent("habit.db").path }
 
-    /// Settings the widgets read: Pro, the app's theme for widgets.
+    /// Settings the widgets read: the app's theme for widgets.
     public static var defaults: UserDefaults { UserDefaults(suiteName: appGroup) ?? .standard }
-    /// A file, not defaults: defaults don't cross processes when the group is missing (simulator).
-    public static var pro: Bool {
-        get { FileManager.default.fileExists(atPath: directory.appendingPathComponent("pro").path) }
-        set {
-            let url = directory.appendingPathComponent("pro")
-            if newValue { FileManager.default.createFile(atPath: url.path, contents: Data()) } else { try? FileManager.default.removeItem(at: url) }
-        }
-    }
 }

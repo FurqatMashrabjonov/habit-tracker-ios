@@ -3,8 +3,8 @@
   "nonRenewingSubscriptions" : [ ],
   "products" : [
     {
-      "displayPrice" : "29.99",
-      "familyShareable" : false,
+      "displayPrice" : "19.99",
+      "familyShareable" : true,
       "internalID" : "6743000001",
       "localizations" : [ { "description" : "Every Pro feature, paid once.", "displayName" : "HabitDots Pro Lifetime", "locale" : "en_US" } ],
       "productID" : "pro_lifetime",
@@ -22,7 +22,7 @@
         {
           "adHocOffers" : [ ],
           "codeOffers" : [ ],
-          "displayPrice" : "11.99",
+          "displayPrice" : "7.99",
           "familyShareable" : false,
           "groupNumber" : 1,
           "internalID" : "6743000002",

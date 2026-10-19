@@ -56,7 +56,7 @@ enum WidgetLook: String, AppEnum {
     case auto, clear, glass, terminal
     static let typeDisplayRepresentation: TypeDisplayRepresentation = "Look"
     static let caseDisplayRepresentations: [WidgetLook: DisplayRepresentation] = [
-        .auto: "Paper / Night", .clear: "Clear (Pro)", .glass: "Glass (Pro)", .terminal: "Terminal (Pro)",
+        .auto: "Paper / Night", .clear: "Clear", .glass: "Glass", .terminal: "Terminal",
     ]
 }
 
@@ -65,7 +65,7 @@ enum HabitLayoutOption: String, AppEnum {
     case wall, week, ring, hero
     static let typeDisplayRepresentation: TypeDisplayRepresentation = "Layout"
     static let caseDisplayRepresentations: [HabitLayoutOption: DisplayRepresentation] = [
-        .wall: "Dot wall", .week: "Last 7 days (Pro)", .ring: "This month (Pro)", .hero: "Streak (Pro)",
+        .wall: "Dot wall", .week: "Last 7 days", .ring: "This month", .hero: "Streak",
     ]
 }
 
@@ -74,7 +74,7 @@ enum RowStyleOption: String, AppEnum {
     case regular, compact, dots
     static let typeDisplayRepresentation: TypeDisplayRepresentation = "Rows"
     static let caseDisplayRepresentations: [RowStyleOption: DisplayRepresentation] = [
-        .regular: "Icon, name and streak", .compact: "Name only (Pro)", .dots: "Name and last 7 days (Pro)",
+        .regular: "Icon, name and streak", .compact: "Name only", .dots: "Name and last 7 days",
     ]
 }
 

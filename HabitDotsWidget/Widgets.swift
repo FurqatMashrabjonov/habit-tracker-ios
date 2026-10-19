@@ -19,9 +19,7 @@ struct WidgetPalette {
     let mono: Bool
     let dots: DotShape
 
-    /// Without Pro every widget falls back to the free look; its settings are kept.
     static func resolve(_ look: WidgetLook, darkText: Bool, scheme: ColorScheme) -> WidgetPalette {
-        let look = Shared.pro ? look : .auto
         switch look {
         case .auto:
             let dark = scheme == .dark
@@ -141,7 +139,7 @@ struct HabitWidgetView: View {
 
     @ViewBuilder
     private func content(_ h: HabitSnap, _ p: WidgetPalette) -> some View {
-        let layout = Shared.pro ? entry.config.layout : .wall
+        let layout = entry.config.layout
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .center, spacing: 8) {
                 if family != .systemSmall { IconTile(icon: h.icon, size: 30, p: p) }
@@ -236,7 +234,7 @@ struct ChecklistView: View {
 
     var body: some View {
         let p = WidgetPalette.resolve(entry.config.look, darkText: entry.config.darkText, scheme: scheme)
-        let rows = Shared.pro ? entry.config.rows : .regular
+        let rows = entry.config.rows
         let counted = entry.habits.filter { !$0.off || $0.done }
         let limit = family == .systemLarge ? 8 : 3
         VStack(alignment: .leading, spacing: 6) {

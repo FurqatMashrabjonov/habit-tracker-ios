@@ -27,13 +27,12 @@ import HabitData
         #expect(!store.canAddHabit(activeHabits: 5))
     }
 
-    @Test func buyingLifetimeUnlocksProAndTheWidgets() async throws {
+    @Test func buyingLifetimeUnlocksPro() async throws {
         let store = Store()
         await store.start()
         #expect(await store.buy(Store.lifetime) == .bought)
         #expect(store.active)
         #expect(store.plan == Store.lifetime)
-        #expect(Shared.pro)
         #expect(store.canAddHabit(activeHabits: 50))
     }
 
@@ -51,6 +50,5 @@ import HabitData
             await store.refresh()
         }
         #expect(!store.active)
-        #expect(!Shared.pro)
     }
 }
