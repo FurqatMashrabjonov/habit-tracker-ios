@@ -15,6 +15,8 @@ struct SettingsSheet: View {
     @State private var paywall = false
     @State private var archived: [Tracker] = []
     @State private var trash: [TrashedHabit] = []
+    @AppStorage("nudge", store: Shared.defaults) private var nudge = false
+    @AppStorage("nudgeAt", store: Shared.defaults) private var nudgeAt = 21 * 3600
 
     var body: some View {
         NavigationStack {
@@ -34,6 +36,16 @@ struct SettingsSheet: View {
                         ArchivedPage(archived: archived, onUnarchive: unarchive)
                     }
                     NavRow(label: "Recently deleted", icon: "ui-trash", value: "\(trash.count)") { TrashPage() }
+                }
+                // Pro: the label says so up front; without Pro a tap opens the paywall.
+                RowGroup {
+                    if store.active {
+                        NavRow(label: "Evening check-in", icon: "ui-bell", value: nudge ? ClockTime(secondOfDay: nudgeAt).description : "Off") { NudgePage() }
+                        NavRow(label: "App icon", icon: "ui-squares-four", value: AppIconChoice.current.name) { IconPage() }
+                    } else {
+                        Row(label: "Evening check-in", icon: "ui-bell", value: "Pro") { paywall = true }
+                        Row(label: "App icon", icon: "ui-squares-four", value: "Pro") { paywall = true }
+                    }
                 }
                 GroupTitle("Data")
                 RowGroup {
@@ -431,5 +443,70 @@ struct SyncPage: View {
             do { try await work(); message = success } catch { message = failure }
             busy = false
         }
+    }
+}
+
+/// Pro's evening check-in: on or off, and when.
+private struct NudgePage: View {
+    @Environment(AppModel.self) private var model
+    @AppStorage("nudge", store: Shared.defaults) private var on = false
+    @AppStorage("nudgeAt", store: Shared.defaults) private var at = 21 * 3600
+    @State private var picking = false
+    var body: some View {
+        Page {
+            RowGroup {
+                Row(label: "Evening check-in", chevron: false, checked: on) {
+                    on.toggle()
+                    if on { Reminders.askPermission() }
+                    model.remindersChanged()
+                }
+                if on { Row(label: "Time", value: ClockTime(secondOfDay: at).description) { picking = true } }
+            }
+            FootNote("At this time, if any of today's habits is still open, one quiet notification lists them. On days you're done, nothing comes.")
+        }
+        .navigationTitle("Evening check-in")
+        .sheet(isPresented: $picking) {
+            TimeSheet(time: ClockTime(secondOfDay: at), title: "Evening check-in") { at = $0.secondOfDay; model.remindersChanged() }
+        }
+    }
+}
+
+/// Pro's app icons: the default and three alternates in the asset catalog.
+enum AppIconChoice: String, CaseIterable {
+    case paper = "Paper", night = "Night", mono = "Mono", dots = "Dots"
+    var name: String { rawValue }
+    /// The alternate icon's asset name; nil is the default icon.
+    var asset: String? { self == .paper ? nil : "AppIcon-\(rawValue)" }
+    static var current: AppIconChoice { allCases.first { $0.asset == UIApplication.shared.alternateIconName } ?? .paper }
+}
+
+private struct IconPage: View {
+    @Environment(\.palette) private var palette
+    @State private var current = AppIconChoice.current
+    var body: some View {
+        Page {
+            HStack(spacing: 0) {
+                ForEach(AppIconChoice.allCases, id: \.self) { icon in
+                    let on = icon == current
+                    Button {
+                        guard !on else { return }
+                        UIApplication.shared.setAlternateIconName(icon.asset) { _ in current = AppIconChoice.current }
+                    } label: {
+                        VStack(spacing: 6) {
+                            Image("IconPreview-\(icon.name)").resizable().frame(width: 64, height: 64)
+                                .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+                                .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                    .stroke(on ? palette.ink : palette.hairline, lineWidth: on ? 2 : 1))
+                            Text(icon.name).font(Type.labelMedium)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(icon.name + (on ? ", selected" : ""))
+                }
+            }
+            .padding(.vertical, 8)
+        }
+        .navigationTitle("App icon")
     }
 }

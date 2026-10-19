@@ -353,6 +353,7 @@ struct ReminderChip: View {
 
 struct TimeSheet: View {
     @State var time: ClockTime
+    var title = "Reminder"
     let onPick: (ClockTime) -> Void
     @Environment(\.dismiss) private var dismiss
     var body: some View {
@@ -363,7 +364,7 @@ struct TimeSheet: View {
             ), displayedComponents: .hourAndMinute)
             .datePickerStyle(.wheel)
             .labelsHidden()
-            .navigationTitle("Reminder")
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }

@@ -36,11 +36,19 @@ enum Reminders {
     static func rebuild(_ store: HabitStore, today: Day) async {
         let center = UNUserNotificationCenter.current()
         guard await center.notificationSettings().authorizationStatus != .denied else { return }
-        let plans: [ReminderPlan]
-        do { plans = try await store.db.read { try ReminderPlan.all($0, today: today, now: Date(), calendar: .current) } } catch { return }
-        let pending = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix("h:") || $0.hasPrefix("t:") }
+        let plans: [ReminderPlan], nudges: [ReminderPlan]
+        let checkIn = await MainActor.run { Store.shared.active } && Nudge.enabled
+        do {
+            (plans, nudges) = try await store.db.read { db in
+                (try ReminderPlan.all(db, today: today, now: Date(), calendar: .current),
+                 checkIn ? try Nudge.plans(db, today: today, now: Date()) : [])
+            }
+        } catch { return }
+        let pending = await center.pendingNotificationRequests().map(\.identifier)
+            .filter { $0.hasPrefix("h:") || $0.hasPrefix("t:") || $0.hasPrefix("n:") }
         center.removePendingNotificationRequests(withIdentifiers: pending)
         for p in plans { try? await center.add(request(p)) }
+        for p in nudges { try? await center.add(Nudge.request(p)) }
     }
 
     private static func request(_ p: ReminderPlan) -> UNNotificationRequest {
@@ -87,6 +95,7 @@ final class NotificationHandler: NSObject, UNUserNotificationCenterDelegate, @un
                 WidgetCenter.shared.reloadAllTimelines()
                 Sync.shared.request(after: 0)
             }
+            await Reminders.rebuild(await MainActor.run { AppModel.shared.store }, today: .today)
         case Reminders.snoozeAction:
             Reminders.snooze(content, id: response.notification.request.identifier)
         case UNNotificationDefaultActionIdentifier:

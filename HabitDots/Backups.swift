@@ -20,7 +20,8 @@ enum Backups {
     static func runIfDue(_ store: HabitStore) async throws {
         let last = UserDefaults.standard.integer(forKey: "autoBackupDay")
         let today = Day.today.epochDay
-        guard today - last >= everyDays, try await !store.trackers(includeArchived: true).isEmpty else { return }
+        // A last copy "in the future" (the clock was set ahead, then back) would stop copies until that day.
+        guard today - last >= everyDays || last > today, try await !store.trackers(includeArchived: true).isEmpty else { return }
         try save(store, kind: "auto")
         UserDefaults.standard.set(today, forKey: "autoBackupDay")
     }

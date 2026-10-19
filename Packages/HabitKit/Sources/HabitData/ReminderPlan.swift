@@ -47,4 +47,28 @@ public struct ReminderPlan: Sendable, Equatable {
         }
         return Array(out.prefix(budget))
     }
+
+    /// Pro's evening check-in, one per day for the next `days`: the habits still open then, or none at all
+    /// on a day nothing is. Later days assume nothing more gets done; any check rebuilds them (the widget
+    /// redoes today's).
+    public static func nudges(_ db: Database, today: Day, at time: ClockTime, now: Date, calendar: Calendar, days: Int) throws -> [ReminderPlan] {
+        let habits = try Tracker.fetchAll(db, sql: "SELECT * FROM tracker WHERE archived = 0 ORDER BY sortOrder, id")
+        var out: [ReminderPlan] = []
+        for offset in 0..<days {
+            let day = today + offset
+            guard let at = calendar.date(from: DateComponents(year: day.year, month: day.month, day: day.day, hour: time.hour, minute: time.minute)),
+                  at > now else { continue }
+            var open: [String] = []
+            for h in habits {
+                guard let id = h.id else { continue }
+                let value = offset == 0 ? try HabitStore.value(in: db, of: id, on: day) : 0
+                let done = try HabitStore.doneDays(in: db, of: h, from: day.weekStart, to: today)
+                if value != Entry.rest && !h.isDone(value) && h.rule.due(day, done: done) { open.append(h.name) }
+            }
+            guard !open.isEmpty else { continue }
+            let (title, body) = open.count == 1 ? (open[0], "Still open today") : ("\(open.count) habits still open today", open.joined(separator: ", "))
+            out.append(ReminderPlan(id: "n:\(day.epochDay)", title: title, body: body, at: at, isTask: false, info: [:]))
+        }
+        return out
+    }
 }

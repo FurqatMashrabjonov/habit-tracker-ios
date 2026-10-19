@@ -24,7 +24,11 @@ struct Paywall: View {
             Grid(horizontalSpacing: 10, verticalSpacing: 10) {
                 GridRow {
                     FeatureTile(title: "Unlimited habits", note: "As many walls as you like") { MiniWall() }
+                    FeatureTile(title: "Evening check-in", note: "A nudge only when today is still open") { MiniNudge() }
+                }
+                GridRow {
                     FeatureTile(title: "Sync", note: "The same dots on every phone") { MiniSync() }
+                    FeatureTile(title: "App icons", note: "Paper, Night, Mono, Dots") { MiniIcons() }
                 }
             }
             HStack(spacing: 10) {
@@ -106,7 +110,7 @@ struct Paywall: View {
                 // Long local prices shrink to fit one line instead of wrapping.
                 Text(price).font(Type.titleLarge).lineLimit(1).minimumScaleFactor(0.5)
                 if let note { Text(note).font(Type.labelMedium).foregroundStyle(palette.ink) }
-                Text(anchor).font(Type.labelSmall).foregroundStyle(palette.dim).lineLimit(2).padding(.top, 4)
+                Text(anchor).font(Type.labelSmall).foregroundStyle(palette.dim).lineLimit(3).padding(.top, 4)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .padding(14)
@@ -154,6 +158,30 @@ private struct MiniWall: View {
                         RoundedRectangle(cornerRadius: 2.5, style: .continuous).fill(c == "1" ? palette.ink : palette.tint).frame(width: 9, height: 9)
                     }
                 }
+            }
+        }
+    }
+}
+
+/// A bell over the evening: the one nudge when today is still open.
+private struct MiniNudge: View {
+    @Environment(\.palette) private var palette
+    var body: some View {
+        HStack(spacing: 8) {
+            Image("Icons/ui-bell").resizable().frame(width: 24, height: 24)
+            Image("Icons/moon").resizable().frame(width: 18, height: 18).opacity(0.5)
+        }
+        .foregroundStyle(palette.ink)
+    }
+}
+
+/// The app icons, small.
+private struct MiniIcons: View {
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(AppIconChoice.allCases, id: \.self) {
+                Image("IconPreview-\($0.name)").resizable().frame(width: 26, height: 26)
+                    .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
             }
         }
     }

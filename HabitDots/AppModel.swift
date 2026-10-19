@@ -42,7 +42,7 @@ final class AppModel {
     static let shared = AppModel(store: try! HabitStore(path: databasePath))
 
     /// Any change to habits, days or tasks reschedules the reminders, once the burst of writes settles.
-    private func remindersChanged() {
+    func remindersChanged() {
         reminderJob?.cancel()
         let store = store, day = today
         reminderJob = _Concurrency.Task {

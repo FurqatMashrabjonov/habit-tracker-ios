@@ -24,6 +24,7 @@ struct ToggleHabit: AppIntent {
         }
         // Every widget, not just the tapped one: the checklist and a single-habit widget show the same day.
         WidgetCenter.shared.reloadAllTimelines()
+        await Nudge.refreshToday(store)
         return .result()
     }
 }

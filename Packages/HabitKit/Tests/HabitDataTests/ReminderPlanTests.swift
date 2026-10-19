@@ -69,4 +69,28 @@ import HabitDomain
         #expect(all.count <= ReminderPlan.budget)
         #expect(all.filter { !$0.isTask }.count == 20 * 2) // 55 left / 20 habits = 2 days each
     }
+
+    @Test func eveningCheckInListsOnlyWhatIsStillOpen() async throws {
+        let s = try HabitStore(path: nil)
+        let read = try await s.save(Tracker(name: "Read", icon: "book-open"))
+        _ = try await s.save(Tracker(name: "Run", icon: "person-simple-run"))
+        let (today, cal) = (today, calendar)
+        func nudges() async throws -> [ReminderPlan] {
+            let now = at(today, 9, 0)
+            return try await s.db.read { try ReminderPlan.nudges($0, today: today, at: ClockTime(21, 0), now: now, calendar: cal, days: 2) }
+        }
+        var n = try await nudges()
+        #expect(n.first?.title == "2 habits still open today")
+        #expect(n.first?.body == "Read, Run")
+        #expect(n.first?.at == at(today, 21, 0))
+        try await s.quick(read, on: today)
+        n = try await nudges()
+        #expect(n.first?.title == "Run")
+        #expect(n.first?.body == "Still open today")
+        // Everything done today: no check-in tonight, tomorrow's stays.
+        let run = try await s.trackers().first { $0.name == "Run" }!
+        try await s.quick(run, on: today)
+        n = try await nudges()
+        #expect(n.map(\.id) == ["n:\(today.epochDay + 1)"])
+    }
 }
