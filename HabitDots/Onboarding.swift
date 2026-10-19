@@ -410,7 +410,8 @@ private struct FirstDot: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Title(title: "Did you \(template.name.lowercased()) today?",
+            // A habit of not doing something reads "No sugar today?".
+            Title(title: template.name.hasPrefix("No ") ? "\(template.name) today?" : "Did you \(template.name.prefix(1).lowercased() + template.name.dropFirst()) today?",
                   text: done ? "That's your first dot. Tomorrow makes two." : "Tap the box if you have. If not, that's fine: it's day one.")
             ZStack {
                 DemoCard(demo: DemoHabit(name: template.name, icon: template.icon), today: today, check: check,
