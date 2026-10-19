@@ -32,6 +32,10 @@ Where both apps stand, what was decided, and what comes next. Same file in both 
 - **Prices** (set by hand in the stores): Yearly **$7.99** with a 7-day trial (default choice), Lifetime **$19.99** as the hero, launch price **$14.99** until ~2027-01-31. No monthly. Regional prices by purchasing power: BR/TR/MX/KZ ~50%, IN/ID ~35%, UZ ~25–30% of the US price. Research and the full table: see the Pro research in the 2026-10-19 session.
 - **Next Pro candidates** (not built): sections (Morning/Evening), a year wall with a "2026 in dots" share card before the new year, later a web version.
 
+## Onboarding (upgraded 2026-10-19, both platforms)
+
+Five steps, built on the existing animated flow: 1 the deck of cards (check the front one), 2 pick habits, 3 **first dot**: "Did you read 20 pages today?" ("No sugar today?" for a "No ..." habit); checking it saves a real entry so home opens at 1/N, 4 **looks**: Paper or a Pro look (Dot matrix, Outline, Receipt) on the user's own card; new widgets start in it (`ui` prefs `look` on Android, `Shared.defaults onboardingLook` on iOS) and fall back to Paper without Pro, 5 the widgets drawn in that look, then a "Remind me at 08:00 / 21:00 / Never" row (21:00 default) that sets every picked habit's reminder; the notification permission is asked on the last tap (Android) or on the time tap and at finish (iOS). Android reuses the widget-settings mocks (`HabitMock`, `LookChip`, `previewPalette`, now top-level in `WidgetSettingsActivity.kt`). Not ported to Android: the iOS chip-to-card fly on step 2. Plan: https://claude.ai/artifact/VxE1Y6C9jQ7GtKxuqyVFoB
+
 ## QA on 2026-10-19 (Samsung S22 + iPhone 17 Pro simulator)
 
 Every flow was driven by script with screenshots: onboarding, home, detail, Inbox, Settings, widgets, backup/CSV, trash, time travel (midnight, +10 days, +1 month, +1 year, clock back), 40 habits with long/RTL/emoji names, 200 tasks, dark mode, large text. Plan: https://claude.ai/artifact/Thdxs8jsXEhLq3pD85CmkU
@@ -53,7 +57,7 @@ Release-build performance (Android, 40 habits, a year of history): cold start 10
 3. iOS: Apple Developer account → `DEVELOPMENT_TEAM` → TestFlight; then check the widgets and the widget-side check-in refresh on a signed build (the unsigned simulator can't).
 4. Check by hand: drag-to-reorder on both phones (the iOS fix touched it).
 5. Open test issues: `HabitDotsTests/StoreTests` fails on this Mac's Xcode 27 StoreKit setup (also on commits from before 2026-10-19); `androidTrashSnapshotReads` in HabitKit is flaky.
-6. Queued for the next phase (asked 2026-10-19): where the Inbox priority flag and ordering sit on widgets and the home screen; a different design for choosing views (card-style picker and widget look picker as one "looks" gallery, not a settings list); a richer, more inviting paywall that shows the looks and icons themselves.
+6. Queued for the next phase (asked 2026-10-19): where the Inbox priority flag and ordering sit on widgets and the home screen; a different design for choosing views (card-style picker and widget look picker as one "looks" gallery, not a settings list). Done since: the paywall with live feature tiles, the onboarding upgrade.
 7. Smaller notes: the note field is a single line; CSV export leaves out counter values and rest days; unsaved edits are lost if Android kills the app; a database with an invalid time crashes on launch (only reachable through a hand-made file).
 
 ## Artifacts (private, claude.ai)
