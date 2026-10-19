@@ -125,25 +125,16 @@ private struct LicensesPage: View {
     }
 }
 
+/// Only the app's theme: card styles live on the home screen, widget themes in each widget's settings.
 private struct AppearancePage: View {
     @AppStorage("theme") private var theme = ThemeMode.system
-    @AppStorage("cards") private var cards = CardStyle.wall
-    @State private var paywall = false
     var body: some View {
         Page {
-            GroupTitle("App")
             RowGroup {
                 ForEach(ThemeMode.allCases, id: \.self) { m in Row(label: m.label, chevron: false, checked: theme == m) { theme = m } }
             }
-            GroupTitle("Habit cards")
-            RowGroup {
-                ForEach(CardStyle.allCases, id: \.self) { s in
-                    Row(label: s.label, chevron: false, checked: cards == s) { cards = s }
-                }
-            }
         }
         .navigationTitle("Appearance")
-        .sheet(isPresented: $paywall) { Paywall() }
     }
 }
 
