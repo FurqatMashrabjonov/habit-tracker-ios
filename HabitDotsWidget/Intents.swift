@@ -105,8 +105,6 @@ struct HabitWidgetConfig: WidgetConfigurationIntent {
     @Parameter(title: "Habit") var habit: HabitEntity?
     @Parameter(title: "Layout", default: .wall) var layout: HabitLayoutOption
     @Parameter(title: "Look", default: .auto) var look: WidgetLook
-    /// The look picked in onboarding stands in for the default until the widget is edited.
-    var effectiveLook: WidgetLook { look == .auto ? WidgetLook(rawValue: Shared.defaults.string(forKey: "onboardingLook") ?? "") ?? .auto : look }
     @Parameter(title: "Dark text", default: false) var darkText: Bool
 }
 
@@ -114,15 +112,11 @@ struct ChecklistConfig: WidgetConfigurationIntent {
     static let title: LocalizedStringResource = "Checklist"
     @Parameter(title: "Rows", default: .regular) var rows: RowStyleOption
     @Parameter(title: "Look", default: .auto) var look: WidgetLook
-    /// The look picked in onboarding stands in for the default until the widget is edited.
-    var effectiveLook: WidgetLook { look == .auto ? WidgetLook(rawValue: Shared.defaults.string(forKey: "onboardingLook") ?? "") ?? .auto : look }
     @Parameter(title: "Dark text", default: false) var darkText: Bool
 }
 
 struct InboxConfig: WidgetConfigurationIntent {
     static let title: LocalizedStringResource = "Inbox"
     @Parameter(title: "Look", default: .auto) var look: WidgetLook
-    /// The look picked in onboarding stands in for the default until the widget is edited.
-    var effectiveLook: WidgetLook { look == .auto ? WidgetLook(rawValue: Shared.defaults.string(forKey: "onboardingLook") ?? "") ?? .auto : look }
     @Parameter(title: "Dark text", default: false) var darkText: Bool
 }
