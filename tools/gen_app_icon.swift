@@ -1,11 +1,10 @@
-// Draws the app icon and the launch image from the same tiles as Android's adaptive icon
-// (ic_launcher_foreground.xml): four 38 dp tiles stepping 4 dp to the right, tilted −12°, the front
-// one on the centre line with the check. Run: swift tools/gen_app_icon.swift
+// Draws the tinted app icon from the same tiles as Android's adaptive icon (ic_launcher_foreground.xml):
+// four 38 dp tiles stepping 5.5 dp to the right, tilted −12°, the front one carrying the check.
+// Run: swift tools/gen_app_icon.swift
 //
-// Outputs, in HabitDots/Assets.xcassets:
-//   AppIcon.appiconset   light (Paper), dark (Night) and tinted (greyscale) 1024 px, iOS 18 picks one
-//                        from the home screen's appearance.
-//   LaunchIcon.imageset  transparent 240 px, light and dark, over LaunchBackground.
+// AppIcon.appiconset holds three 1024 px renditions and iOS 18 picks one from the home screen's
+// appearance: icon-1024.png (Paper) and icon-1024-dark.png (Night) are the original artwork and
+// stay as they are; this script writes only icon-1024-tinted.png (greyscale, tinted by the system).
 import AppKit
 
 struct Look {
@@ -52,12 +51,14 @@ func render(_ look: Look, size: Int, units: CGFloat, shift: CGFloat = 0, to url:
     ctx.translateBy(x: shift, y: 0)
     ctx.rotate(by: -12 * .pi / 180)
     let tile = tilePath()
-    for (i, x) in [42.0, 46, 50].enumerated() {
-        ctx.saveGState(); ctx.translateBy(x: CGFloat(x) - 54, y: 0)
+    for (i, x) in [45.75, 51.25, 56.75].enumerated() {
+        ctx.saveGState(); ctx.translateBy(x: CGFloat(x) - 62.25, y: 0)
         ctx.addPath(tile); ctx.setFillColor(look.back[i].cgColor); ctx.fillPath()
         ctx.restoreGState()
     }
+    ctx.saveGState(); ctx.translateBy(x: 0, y: 0)
     ctx.addPath(tile); ctx.setFillColor(look.front.cgColor); ctx.fillPath()
+    ctx.restoreGState()
     let check = CGMutablePath()
     check.move(to: CGPoint(x: -9.77, y: 0.57)); check.addLine(to: CGPoint(x: -2.88, y: 7.47)); check.addLine(to: CGPoint(x: 9.77, y: -7.47))
     ctx.addPath(check)
@@ -69,37 +70,6 @@ func render(_ look: Look, size: Int, units: CGFloat, shift: CGFloat = 0, to url:
 
 let assets = URL(fileURLWithPath: "HabitDots/Assets.xcassets")
 let icon = assets.appendingPathComponent("AppIcon.appiconset")
-// 62 dp across, nudged 4.5 dp right: the stack fills the icon with even margins. iOS has no round
-// mask, so the stack's outline is balanced in the square instead of putting the front tile dead centre.
-let span: CGFloat = 62, nudge: CGFloat = 4.5
-render(paper, size: 1024, units: span, shift: nudge, to: icon.appendingPathComponent("icon-1024.png"))
-render(night, size: 1024, units: span, shift: nudge, to: icon.appendingPathComponent("icon-1024-dark.png"))
-render(tinted, size: 1024, units: span, shift: nudge, to: icon.appendingPathComponent("icon-1024-tinted.png"))
-try! """
-{
-  "images" : [
-    { "filename" : "icon-1024.png", "idiom" : "universal", "platform" : "ios", "size" : "1024x1024" },
-    { "appearances" : [ { "appearance" : "luminosity", "value" : "dark" } ], "filename" : "icon-1024-dark.png", "idiom" : "universal", "platform" : "ios", "size" : "1024x1024" },
-    { "appearances" : [ { "appearance" : "luminosity", "value" : "tinted" } ], "filename" : "icon-1024-tinted.png", "idiom" : "universal", "platform" : "ios", "size" : "1024x1024" }
-  ],
-  "info" : { "author" : "xcode", "version" : 1 }
-}
-
-""".write(to: icon.appendingPathComponent("Contents.json"), atomically: true, encoding: .utf8)
-
-let launch = assets.appendingPathComponent("LaunchIcon.imageset")
-var clearPaper = paper; clearPaper.ground = nil
-var clearNight = night; clearNight.ground = nil
-render(clearPaper, size: 240, units: span, shift: nudge, to: launch.appendingPathComponent("launch.png"))
-render(clearNight, size: 240, units: span, shift: nudge, to: launch.appendingPathComponent("launch-dark.png"))
-try! """
-{
-  "images" : [
-    { "filename" : "launch.png", "idiom" : "universal", "scale" : "3x" },
-    { "appearances" : [ { "appearance" : "luminosity", "value" : "dark" } ], "filename" : "launch-dark.png", "idiom" : "universal", "scale" : "3x" }
-  ],
-  "info" : { "author" : "xcode", "version" : 1 }
-}
-
-""".write(to: launch.appendingPathComponent("Contents.json"), atomically: true, encoding: .utf8)
-print("app icon and launch image written")
+// The original icon spans about 82 dp of the canvas with the front tile 8 dp right of centre.
+render(tinted, size: 1024, units: 82, shift: 8.25, to: icon.appendingPathComponent("icon-1024-tinted.png"))
+print("tinted app icon written")
