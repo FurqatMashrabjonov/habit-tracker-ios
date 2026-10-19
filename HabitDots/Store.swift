@@ -1,14 +1,14 @@
 import Foundation
 import WidgetKit
-import StoreKit
+import FirebaseAuth
+import RevenueCat
 import HabitData
 
-/// HabitDots Pro: unlimited habits, sync, statistics and widget looks. Free covers everything else
-/// for good. Sold through the App Store: `pro_yearly` (subscription with a free trial) or
-/// `pro_lifetime` (one-time), the same product ids as on Google Play.
-///
-/// ponytail: entitlement is checked on the phone with StoreKit 2's signed transactions; add server
-/// verification (App Store Server API) if piracy ever matters.
+/// HabitDots Pro: unlimited habits, evening check-in, home screen looks and sync. Free covers
+/// everything else for good. Sold through RevenueCat on top of the App Store: `pro_yearly`
+/// (subscription with a free trial) or `pro_lifetime` (one-time), the same product ids as on Google
+/// Play. One entitlement, `pro`, shared with the Android app: the RevenueCat user is the Firebase
+/// account, so Pro bought on either phone unlocks both once signed in.
 @MainActor
 @Observable
 final class Store {
@@ -17,11 +17,21 @@ final class Store {
     static let yearly = "pro_yearly"
     static let lifetime = "pro_lifetime"
     static let freeHabits = 4
+    private static let entitlement = "pro"
+
+    // Public SDK keys (safe to ship). Debug builds use RevenueCat's Test Store, so purchases can be
+    // tried in the simulator without an App Store account.
+    #if DEBUG
+    private static let apiKey = "test_WyqyQuELbZSupwZnSOhFWrqwGQe"
+    #else
+    private static let apiKey = "appl_MLzsPhcPtuDTWqNIQLPWSHUzljE"
+    #endif
 
     /// Which plan is owned: `yearly`, `lifetime` or nil. Starts from the last known state, so an
     /// offline start doesn't lock a paying user out.
     private(set) var plan: String? = UserDefaults.standard.string(forKey: "plan")
-    private(set) var products: [String: Product] = [:]
+    /// The current offering's packages by product id, once RevenueCat answers.
+    private(set) var products: [String: Package] = [:]
     /// Debug builds can pretend to own Pro, to try both sides (Settings).
     var pretend = UserDefaults.standard.bool(forKey: "pretendPro") {
         didSet { UserDefaults.standard.set(pretend, forKey: "pretendPro"); publish() }
@@ -32,29 +42,57 @@ final class Store {
     var active: Bool { plan != nil || (Pro.debuggable && pretend) }
 
     private var updates: _Concurrency.Task<Void, Never>?
+    private var auth: AuthStateDidChangeListenerHandle?
 
     func start() async {
         publish()
-        // Purchases made elsewhere (another device, Ask to Buy, a renewal) arrive here.
-        updates = _Concurrency.Task {
-            for await result in Transaction.updates {
-                if case .verified(let t) = result { await t.finish() }
-                await self.refresh()
+        guard !Purchases.isConfigured else { return }
+        #if DEBUG
+        Purchases.logLevel = .debug
+        #endif
+        let signedIn = Sync.shared.available ? Auth.auth().currentUser?.uid : nil
+        Purchases.configure(with: Configuration.Builder(withAPIKey: Self.apiKey).with(appUserID: signedIn).build())
+        // Renewals, refunds and purchases from the other phone all land here.
+        updates = _Concurrency.Task { [weak self] in
+            for await info in Purchases.shared.customerInfoStream { self?.own(info) }
+        }
+        // The RevenueCat user follows the Google account: sign-in links Pro across phones,
+        // sign-out (or deleting the account) leaves it behind.
+        if Sync.shared.available {
+            auth = Auth.auth().addStateDidChangeListener { _, user in
+                let uid = user?.uid
+                _Concurrency.Task { @MainActor in
+                    let p = Purchases.shared
+                    if let uid, uid != p.appUserID {
+                        if let (info, _) = try? await p.logIn(uid) { Store.shared.own(info) }
+                    } else if uid == nil, !p.isAnonymous {
+                        if let info = try? await p.logOut() { Store.shared.own(info) }
+                    }
+                }
             }
         }
         await refresh()
-        if let loaded = try? await Product.products(for: [Self.yearly, Self.lifetime]) {
-            products = Dictionary(uniqueKeysWithValues: loaded.map { ($0.id, $0) })
+        if let offering = try? await Purchases.shared.offerings().current {
+            products = Dictionary(offering.availablePackages.compactMap { p in
+                let id = p.storeProduct.productIdentifier
+                return id == Self.yearly || id == Self.lifetime ? (id, p) : nil
+            }, uniquingKeysWith: { a, _ in a })
         }
     }
 
-    /// Asks the App Store what this Apple Account owns.
+    /// Asks RevenueCat what this user owns.
     func refresh() async {
-        var owned: Set<String> = []
-        for await result in Transaction.currentEntitlements {
-            if case .verified(let t) = result, t.revocationDate == nil { owned.insert(t.productID) }
-        }
-        plan = owned.contains(Self.lifetime) ? Self.lifetime : owned.contains(Self.yearly) ? Self.yearly : nil
+        guard Purchases.isConfigured, let info = try? await Purchases.shared.customerInfo() else { return }
+        own(info)
+    }
+
+    private func own(_ info: CustomerInfo) {
+        guard let pro = info.entitlements[Self.entitlement], pro.isActive else { return set(nil) }
+        set(pro.productIdentifier == Self.lifetime ? Self.lifetime : Self.yearly)
+    }
+
+    private func set(_ owned: String?) {
+        plan = owned
         UserDefaults.standard.set(plan, forKey: "plan")
         publish()
     }
@@ -62,25 +100,20 @@ final class Store {
     enum Outcome { case bought, pending, cancelled, failed }
 
     func buy(_ id: String) async -> Outcome {
-        guard let product = products[id] else { return .failed }
+        guard let package = products[id] else { return .failed }
         do {
-            switch try await product.purchase() {
-            case .success(.verified(let t)):
-                await t.finish()
-                await refresh()
-                return .bought
-            case .success(.unverified): return .failed
-            case .pending: return .pending
-            case .userCancelled: return .cancelled
-            @unknown default: return .failed
-            }
+            let result = try await Purchases.shared.purchase(package: package)
+            if result.userCancelled { return .cancelled }
+            own(result.customerInfo)
+            return active ? .bought : .pending
+        } catch let error as ErrorCode where error == .paymentPendingError {
+            return .pending
         } catch { return .failed }
     }
 
     /// "Restore purchase": syncs with the App Store (may ask to sign in), then re-reads.
     func restore() async -> Bool {
-        try? await AppStore.sync()
-        await refresh()
+        if let info = try? await Purchases.shared.restorePurchases() { own(info) }
         return active
     }
 
@@ -92,24 +125,21 @@ final class Store {
 
     func canAddHabit(activeHabits: Int) -> Bool { active || activeHabits < Self.freeHabits }
 
-    func price(_ id: String) -> String? { products[id]?.displayPrice }
+    func price(_ id: String) -> String? { products[id]?.storeProduct.localizedPriceString }
 
-    /// The yearly price spread over twelve months, in the store's currency ("$1.00").
-    var monthlyOfYearly: String? {
-        guard let p = products[Self.yearly] else { return nil }
-        return p.priceFormatStyle.format(p.price / 12)
-    }
+    /// The yearly price spread over twelve months, in the store's currency ("$0.67").
+    var monthlyOfYearly: String? { products[Self.yearly]?.storeProduct.localizedPricePerMonth }
 
     /// How many years of the yearly plan the lifetime price equals; the paywall's anchor.
     var lifetimeInYears: Double? {
-        guard let y = products[Self.yearly]?.price, let l = products[Self.lifetime]?.price, y > 0 else { return nil }
+        guard let y = products[Self.yearly]?.storeProduct.price, let l = products[Self.lifetime]?.storeProduct.price, y > 0 else { return nil }
         return NSDecimalNumber(decimal: l / y).doubleValue
     }
 
     /// Free trial length in days on the yearly plan, if offered.
     var trialDays: Int? {
-        guard let offer = products[Self.yearly]?.subscription?.introductoryOffer, offer.paymentMode == .freeTrial else { return nil }
-        let p = offer.period
+        guard let offer = products[Self.yearly]?.storeProduct.introductoryDiscount, offer.paymentMode == .freeTrial else { return nil }
+        let p = offer.subscriptionPeriod
         switch p.unit {
         case .day: return p.value
         case .week: return p.value * 7

@@ -32,6 +32,18 @@ Where both apps stand, what was decided, and what comes next. Same file in both 
 - **Prices** (set by hand in the stores): Yearly **$7.99** with a 7-day trial (default choice), Lifetime **$19.99** as the hero, launch price **$14.99** until ~2027-01-31. No monthly. Regional prices by purchasing power: BR/TR/MX/KZ ~50%, IN/ID ~35%, UZ ~25–30% of the US price. Research and the full table: see the Pro research in the 2026-10-19 session.
 - **Next Pro candidates** (not built): sections (Morning/Evening), a year wall with a "2026 in dots" share card before the new year, later a web version.
 
+## Billing through RevenueCat (2026-10-19, both platforms)
+
+Pro is one RevenueCat entitlement shared by both apps, so a purchase on either phone unlocks both once the user signs in with the same Google account.
+
+- **Dashboard**: project **HabitDots** `proj0ae14c1e` (https://app.revenuecat.com/projects/0ae14c1e). Apps: Play `app.habitdots` (`app153e95cfcf`), App Store `app.habitdots` (`appbdc9ca5aec`), Test Store (`appc4b98ade81`). Entitlement `pro`. Products: Play `pro_yearly:yearly` and `pro_lifetime`; App Store and Test Store `pro_yearly` and `pro_lifetime` (Test Store prices $7.99 / $19.99). Offering `default` (current) with packages `$rc_annual` and `$rc_lifetime`.
+- **Identity**: the RevenueCat app user ID is the Firebase uid. A Firebase auth-state listener calls `logIn(uid)` on sign-in and `logOut()` on sign-out or account deletion. Purchases made before signing in are anonymous and merge into the uid on the first sign-in.
+- **Code**: same facades as before, only the internals changed. Android `billing/Pro.kt` (SDK `com.revenuecat.purchases:purchases` 10.28.1, Play Billing dependency removed). iOS `HabitDots/Store.swift` (SPM `purchases-ios-spm` 5.96.0 in `project.yml`). The paywall and every gate are untouched; `Shared.pro` still feeds the iOS widgets; "Pretend Pro" still works in debug.
+- **Keys**: debug builds use the Test Store key (`test_…`), release builds the store keys (`goog_…`, `appl_…`). Test Store purchases show a "Test valid purchase" dialog and need no store account. Never ship a release built with the test key: the SDK crashes in production with it.
+- **Verified 2026-10-19**: Test Store purchase of Lifetime on the Android emulator (anonymous user) and of Yearly on the iOS simulator (signed in, uid `038JVlA89ZaTo2jBaE9BIRza8Ga2`): both unlock Pro, and the dashboard shows the entitlement. **Not yet verified**: the same Google account on both phones getting Pro from one purchase (the emulator has no Google account). Check it on the S22 preview build signed into the account the simulator uses.
+- **Still to connect (by hand)**: Play service-account JSON in RevenueCat (Google Cloud service account with Play Console financial and order permissions; can take up to ~36 h to work) plus Real-time developer notifications (Pub/Sub) so refunds show. App Store: In-App Purchase key (.p8) and App Store Server Notifications once the Apple account exists. Until the Play credentials are in, release builds cannot validate real purchases.
+- Free under $2,500 monthly tracked revenue, then 1%. Money still goes straight from Google and Apple to the bank.
+
 ## Onboarding (upgraded 2026-10-19, both platforms)
 
 Four steps on the existing animated flow: 1 the deck of cards, 2 pick habits (a "Your own" chip comes first and turns into a text field; typed habits join the picks), 3 **first dot**: "Did you read 20 pages today?" ("No sugar today?", "Gym today?" for "No ..." and typed habits); the box or "Done it today" saves a real entry so home opens at 1/N, 4 the widgets, then "Remind me at 08:00 / 21:00 / Never" (21:00 default) for every picked habit; notification permission asked on the last tap.
@@ -55,7 +67,7 @@ Release-build performance (Android, 40 habits, a year of history): cold start 10
 ## Store and payout facts
 
 - **Google Play**: payouts approved to the Uzum Bank USD account (2026-10-19). Products `pro_yearly` (base plan `yearly`, 7-day trial) and `pro_lifetime` exist. The 15% service fee needs enrolling.
-- **App Store**: IAP via StoreKit; 15% after enrolling in the Small Business Program. Uzbekistan is a storefront; pay the $99 with an international card. For payouts try Uzum Bank USD first under Agreements → Banking, else Payoneer/Wise. Fill W-8BEN.
+- **App Store**: IAP via StoreKit, through RevenueCat; 15% after enrolling in the Small Business Program. Uzbekistan is a storefront; pay the $99 with an international card. For payouts try Uzum Bank USD first under Agreements → Banking, else Payoneer/Wise. Fill W-8BEN.
 - **Play closed testing** started 2026-10-16 (opt-in https://play.google.com/apps/testing/app.habitdots). **Apply for production on or after 2026-10-30.** 1.0.1 (versionCode 3, Google sign-in fix) was never uploaded: ship everything since in the production build with a new versionCode. The data-safety form must declare crash logs (Crashlytics).
 
 ## Moving to another Mac
@@ -65,6 +77,7 @@ These are not in git and must be copied by hand: `habit/app/google-services.json
 ## Next steps, in order
 
 **Store setup (by hand, before release)**
+0. RevenueCat: upload the Play service-account JSON and turn on Real-time developer notifications (see "Billing through RevenueCat"). Do this first: the credentials can take a day and a half to start working. Then test a license-tester purchase on a Play build, and one Google account on both phones.
 1. Play Console: enrol in the 15% service fee; set the prices and regional prices below; check `pro_yearly` (base plan `yearly`, 7-day free trial offer for new customers) and `pro_lifetime`; store listing text for the new Pro (unlimited habits, evening check-in, home screen looks, sync); data-safety form declares crash logs (Crashlytics).
 2. On or after **2026-10-30**: Android production release with a new `versionCode` (1.0.1 / versionCode 3 was never uploaded).
 3. Apple: developer account ($99, international card), Small Business Program (15%), Agreements → Banking (Uzum Bank USD, else Payoneer/Wise), W-8BEN, same prices and tiers; then `DEVELOPMENT_TEAM` in `project.yml` → TestFlight. On a signed build check what the simulator can't: real widgets in every look, the Inbox widget's Show option, a check from a widget refreshing the app, Liquid Glass.
@@ -88,7 +101,7 @@ These are not in git and must be copied by hand: `habit/app/google-services.json
 9. Check by hand: drag-to-reorder on both phones.
 
 **Known issues**
-- iOS `HabitDotsTests/StoreTests` fails on this Mac's Xcode 27 StoreKit setup (also before 2026-10-19); `androidTrashSnapshotReads` in HabitKit is flaky.
+- iOS `HabitDotsTests/StoreTests` now checks only the Pro gates (purchases go through RevenueCat and are checked by hand); `androidTrashSnapshotReads` in HabitKit is flaky.
 - DotGothic16 font is 2 MB (full CJK set); subset it.
 - The note field is a single line; CSV export leaves out counter values and rest days; unsaved edits are lost if Android kills the app; a database with an invalid time crashes on launch (only via a hand-made file).
 - On the test phone the preview app (`app.habitdots.preview`) was reset; Pretend Pro is off.

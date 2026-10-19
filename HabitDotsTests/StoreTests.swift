@@ -1,54 +1,43 @@
-import StoreKitTest
+import Foundation
 import Testing
 import HabitData
 @testable import HabitDots
 
-/// The real purchase flow against Products.storekit, no App Store account needed.
+/// The gates around Pro. Purchases themselves go through RevenueCat (its Test Store in debug
+/// builds), which needs the network and a tap on its dialog, so they are checked by hand.
 @MainActor
-@Suite(.serialized, .timeLimit(.minutes(1))) struct StoreTests {
-    let session: SKTestSession
-
-    init() throws {
-        session = try SKTestSession(configurationFileNamed: "Products")
-        session.disableDialogs = true
-        session.clearTransactions()
+@Suite(.serialized) struct StoreTests {
+    init() {
         UserDefaults.standard.removeObject(forKey: "plan")
         UserDefaults.standard.set(false, forKey: "pretendPro")
     }
 
-    @Test func productsLoadWithPricesAndTrial() async throws {
+    @Test func freeUsersKeepFourHabits() {
         let store = Store()
-        await store.start()
-        #expect(store.price(Store.yearly) != nil)
-        #expect(store.price(Store.lifetime) != nil)
-        #expect(store.trialDays == 7)
         #expect(!store.active)
-        #expect(store.canAddHabit(activeHabits: 4))
-        #expect(!store.canAddHabit(activeHabits: 5))
+        #expect(store.canAddHabit(activeHabits: 3))
+        #expect(!store.canAddHabit(activeHabits: Store.freeHabits))
     }
 
-    @Test func buyingLifetimeUnlocksPro() async throws {
+    @Test func requireOpensThePaywallOnlyWithoutPro() {
         let store = Store()
-        await store.start()
-        #expect(await store.buy(Store.lifetime) == .bought)
+        #expect(!store.require())
+        #expect(store.paywall)
+    }
+
+    @Test func lastKnownPlanUnlocksOffline() {
+        UserDefaults.standard.set(Store.lifetime, forKey: "plan")
+        let store = Store()
         #expect(store.active)
         #expect(store.plan == Store.lifetime)
         #expect(store.canAddHabit(activeHabits: 50))
+        #expect(store.require())
     }
 
-    @Test func yearlyTrialCountsAsPro_refundTakesItAway() async throws {
+    @Test func pricesWaitForTheStore() {
         let store = Store()
-        await store.start()
-        #expect(await store.buy(Store.yearly) == .bought)
-        #expect(store.plan == Store.yearly)
-        let all = session.allTransactions()
-        let t = try #require(all.first { $0.productIdentifier == Store.yearly })
-        try session.refundTransaction(identifier: UInt(t.identifier))
-        // StoreKit reports the refund through Transaction.updates; give it a moment.
-        for _ in 0..<20 where store.active {
-            try await _Concurrency.Task.sleep(for: .milliseconds(100))
-            await store.refresh()
-        }
-        #expect(!store.active)
+        #expect(store.price(Store.yearly) == nil)
+        #expect(store.lifetimeInYears == nil)
+        #expect(store.trialDays == nil)
     }
 }
