@@ -635,16 +635,13 @@ private struct ChecklistMock: View {
     }
 }
 
-/// A new phone: sign in and the account's habits come down (sync is Pro, so the paywall with
-/// Restore purchase comes first for anyone without it), or bring a backup file along.
+/// A new phone: sign in and the account's habits come down (with Pro), or bring a backup file along.
 private struct Returning: View {
     let onBackup: () -> Void
     let onSignedIn: () -> Void
     @Environment(\.palette) private var palette
-    @State private var store = Store.shared
     @State private var sync = Sync.shared
     @State private var busy = false
-    @State private var paywall = false
     @State private var failed = false
 
     var body: some View {
@@ -652,10 +649,10 @@ private struct Returning: View {
             Text("Welcome back").font(Type.headlineSmall)
             Text("Sign in to the account you sync with, or restore a backup file from your other phone.")
                 .font(Type.bodyMedium).foregroundStyle(palette.dim).padding(.bottom, 8)
-            if sync.available && store.active {
+            // Straight to Google sign-in, no paywall: a returning Pro user's purchase comes back from
+            // the App Store by itself and the habits follow (sync is Pro).
+            if sync.available {
                 RowGroup { Row(label: "Sign in with Google", icon: "ui-cloud", chevron: false) { signIn { try await sync.signInWithGoogle() } } }
-            } else if sync.available {
-                RowGroup { Row(label: "Sync with your account", icon: "ui-cloud", value: "Pro") { paywall = true } }
             }
             RowGroup { Row(label: "Restore a backup file", icon: "ui-database", chevron: false, action: onBackup) }
             if busy { ProgressView().frame(maxWidth: .infinity) }
@@ -663,11 +660,10 @@ private struct Returning: View {
         .padding(.horizontal, 20).padding(.top, 28)
         .frame(maxHeight: .infinity, alignment: .top)
         .disabled(busy)
-        .presentationDetents([.height(sync.available && store.active ? 360 : 290)])
+        .presentationDetents([.height(sync.available ? 360 : 290)])
         .textCap()
         .presentationCornerRadius(Radius.sheet)
         .presentationBackground(palette.background)
-        .sheet(isPresented: $paywall) { Paywall() }
         .alert("Couldn't sign in", isPresented: $failed) { Button("OK") {} }
     }
 

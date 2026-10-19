@@ -34,7 +34,15 @@ Where both apps stand, what was decided, and what comes next. Same file in both 
 
 ## Onboarding (upgraded 2026-10-19, both platforms)
 
-Four steps on the existing animated flow: 1 the deck of cards, 2 pick habits (a "Your own" chip comes first and turns into a text field; typed habits join the picks), 3 **first dot**: "Did you read 20 pages today?" ("No sugar today?", "Gym today?" for "No ..." and typed habits); the box or "Done it today" saves a real entry so home opens at 1/N, 4 the widgets, then "Remind me at 08:00 / 21:00 / Never" (21:00 default) for every picked habit; notification permission asked on the last tap. **No Pro anywhere in onboarding** (user's rule): no looks step, no free-limit text; the 4-habit limit holds silently under "Fewer is easier to keep." Monochrome only: the streak line uses the app's flame icon, no emoji. The only Pro touch left is "I already use HabitDots", since sign-in sync is Pro.
+Four steps on the existing animated flow: 1 the deck of cards, 2 pick habits (a "Your own" chip comes first and turns into a text field; typed habits join the picks), 3 **first dot**: "Did you read 20 pages today?" ("No sugar today?", "Gym today?" for "No ..." and typed habits); the box or "Done it today" saves a real entry so home opens at 1/N, 4 the widgets, then "Remind me at 08:00 / 21:00 / Never" (21:00 default) for every picked habit; notification permission asked on the last tap.
+
+User's rules for onboarding: **never mention or show Pro** (no looks step, no free-limit text; the 4-habit limit holds silently under "Fewer is easier to keep."), **no colour or emoji** (the streak line uses the app's flame icon), **users can type their own habit**. "I already use HabitDots" goes straight to Google sign-in with no paywall: a returning Pro user's purchase comes back from the store and sync (Pro only, `Sync.kt`) brings the habits; a non-Pro user just lands in the app, and Settings → Sync says sync is paused.
+
+## Other changes on 2026-10-19 (afternoon)
+
+- **Settings → Appearance** shows only the app theme (System/Light/Dark). Card styles are on the home screen; widget light/dark is in each widget's settings (Android).
+- **Card style button** moved next to the add button, a round header button like Settings whose icon is the style in use (wall / four squares / rows). The picker has no frames or checkboxes: each style's real card sits on its own grey slab (darker with an "In use" tag for the current one); one tap picks and closes.
+- **Inbox widget** shows one-off tasks only: repeating tasks never appear (the Inbox is for things done once). "Show: Inbox" lists every open one-off task; "Show: Today" only those due today or overdue. iOS gained the same Show option (`InboxShowOption` in `Intents.swift`).
 
 ## QA on 2026-10-19 (Samsung S22 + iPhone 17 Pro simulator)
 
@@ -50,15 +58,40 @@ Release-build performance (Android, 40 habits, a year of history): cold start 10
 - **App Store**: IAP via StoreKit; 15% after enrolling in the Small Business Program. Uzbekistan is a storefront; pay the $99 with an international card. For payouts try Uzum Bank USD first under Agreements → Banking, else Payoneer/Wise. Fill W-8BEN.
 - **Play closed testing** started 2026-10-16 (opt-in https://play.google.com/apps/testing/app.habitdots). **Apply for production on or after 2026-10-30.** 1.0.1 (versionCode 3, Google sign-in fix) was never uploaded: ship everything since in the production build with a new versionCode. The data-safety form must declare crash logs (Crashlytics).
 
+## Moving to another Mac
+
+These are not in git and must be copied by hand: `habit/app/google-services.json`, `habit-tracker-ios/HabitDots/GoogleService-Info.plist`, and the Android upload keystore in `~/.config/habitdots/` (with its passwords). Without the keystore no Play update can be signed. Claude's memory files live on this Mac only (`~/.claude/projects/-Users-furqat-apps-habit/memory/`); everything important from them is in this file.
+
 ## Next steps, in order
 
-1. Store setup by hand: Play 15% enrolment, new prices and regional prices in both stores, store descriptions for the new Pro.
-2. On/after 2026-10-30: Android production release (new versionCode, data safety, prices).
-3. iOS: Apple Developer account → `DEVELOPMENT_TEAM` → TestFlight; then check the widgets and the widget-side check-in refresh on a signed build (the unsigned simulator can't).
-4. Check by hand: drag-to-reorder on both phones (the iOS fix touched it).
-5. Open test issues: `HabitDotsTests/StoreTests` fails on this Mac's Xcode 27 StoreKit setup (also on commits from before 2026-10-19); `androidTrashSnapshotReads` in HabitKit is flaky.
-6. Queued for the next phase (asked 2026-10-19): where the Inbox priority flag and ordering sit on widgets and the home screen; a different design for choosing views (card-style picker and widget look picker as one "looks" gallery, not a settings list). Done since: the paywall with live feature tiles, the onboarding upgrade.
-7. Smaller notes: the note field is a single line; CSV export leaves out counter values and rest days; unsaved edits are lost if Android kills the app; a database with an invalid time crashes on launch (only reachable through a hand-made file).
+**Store setup (by hand, before release)**
+1. Play Console: enrol in the 15% service fee; set the prices and regional prices below; check `pro_yearly` (base plan `yearly`, 7-day free trial offer for new customers) and `pro_lifetime`; store listing text for the new Pro (unlimited habits, evening check-in, home screen looks, sync); data-safety form declares crash logs (Crashlytics).
+2. On or after **2026-10-30**: Android production release with a new `versionCode` (1.0.1 / versionCode 3 was never uploaded).
+3. Apple: developer account ($99, international card), Small Business Program (15%), Agreements → Banking (Uzum Bank USD, else Payoneer/Wise), W-8BEN, same prices and tiers; then `DEVELOPMENT_TEAM` in `project.yml` → TestFlight. On a signed build check what the simulator can't: real widgets in every look, the Inbox widget's Show option, a check from a widget refreshing the app, Liquid Glass.
+4. Calendar: **2027-01-31** raise Lifetime from the launch $14.99 to $19.99 (the app reads prices from the store; no code change).
+
+**Prices** (US base; Play converts, then override these countries by hand and round to a local-looking price)
+
+| Tier | Countries | Yearly | Lifetime (launch → later) |
+|---|---|---|---|
+| T1 100% | US, CA, UK, EU, AU, NZ, JP, KR, Gulf, CH, Nordics | $7.99 | $14.99 → $19.99 |
+| T2 ~70% | PL, CZ, HU, RO, GR, PT, CL (optional; Play's own conversion is fine to start) | ~$5.49 | ~$9.99 → $13.99 |
+| T3 ~50% | BR, TR, MX, KZ, AR, CO, ZA, MY, TH | ~$3.99 | ~$7.49 → $9.99 |
+| T4 ~35% | IN, ID, PH, VN, EG, PK, NG, BD | ~$2.79 | ~$4.99 → $6.99 |
+| T5 ~25–30% | UZ, KG, TJ | ~$2.29 | ~$3.99 → $5.49 |
+
+**Code, next phase**
+5. Priority placement: where the Inbox priority flag and ordering show on widgets and the home screen.
+6. One "Looks" gallery: card styles and widget looks chosen in one visual place, not a settings list (iOS has no widget-look picker in the app at all).
+7. Widget looks wave 2: Pixel, Typewriter, Negative, Serif (backlog: Graph, Frame, Hatched, Ledger). Black, white and grey only.
+8. Lock screen widgets; sections (Morning/Evening); a "2026 in dots" year share card before the new year; iOS 27 extra-large "Year in dots" widget.
+9. Check by hand: drag-to-reorder on both phones.
+
+**Known issues**
+- iOS `HabitDotsTests/StoreTests` fails on this Mac's Xcode 27 StoreKit setup (also before 2026-10-19); `androidTrashSnapshotReads` in HabitKit is flaky.
+- DotGothic16 font is 2 MB (full CJK set); subset it.
+- The note field is a single line; CSV export leaves out counter values and rest days; unsaved edits are lost if Android kills the app; a database with an invalid time crashes on launch (only via a hand-made file).
+- On the test phone the preview app (`app.habitdots.preview`) was reset; Pretend Pro is off.
 
 ## Artifacts (private, claude.ai)
 

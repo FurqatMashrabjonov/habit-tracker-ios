@@ -332,8 +332,9 @@ struct InboxProvider: AppIntentTimelineProvider {
     private func entry(_ config: InboxConfig) async -> InboxEntry {
         let all = ((try? await Snapshot.store()?.db.read { try HabitStore.openTasks(in: $0) }) ?? []) ?? []
         let today = Day.today
-        // Today: one-off tasks due today or overdue; repeating ones stay out (as on Android).
-        let tasks = config.show == .inbox ? all : all.filter { $0.repeat == nil && $0.dueDate.map { $0 <= today } == true }
+        // One-off tasks only: the Inbox is for things done once; repeating ones live in the app (as on Android).
+        let oneOff = all.filter { $0.repeat == nil }
+        let tasks = config.show == .inbox ? oneOff : oneOff.filter { $0.dueDate.map { $0 <= today } == true }
         return InboxEntry(date: Date(), today: today, tasks: tasks, config: config)
     }
 }
