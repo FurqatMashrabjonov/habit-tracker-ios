@@ -1,4 +1,4 @@
-// Draws the app icon and the launch image from the same geometry as Android's adaptive icon
+// Draws the app icon and the launch image from the same tiles as Android's adaptive icon
 // (ic_launcher_foreground.xml): four 38 dp tiles stepping 4 dp to the right, tilted −12°, the front
 // one on the centre line with the check. Run: swift tools/gen_app_icon.swift
 //
@@ -37,7 +37,7 @@ func tilePath() -> CGPath {
 }
 
 /// `units`: how many dp of the 108 dp canvas the square image spans, centred on (54, 54).
-func render(_ look: Look, size: Int, units: CGFloat, to url: URL) {
+func render(_ look: Look, size: Int, units: CGFloat, shift: CGFloat = 0, to url: URL) {
     let cs = CGColorSpace(name: CGColorSpace.sRGB)!
     let alpha: CGImageAlphaInfo = look.ground == nil ? .premultipliedLast : .noneSkipLast
     let ctx = CGContext(data: nil, width: size, height: size, bitsPerComponent: 8, bytesPerRow: 0, space: cs, bitmapInfo: alpha.rawValue)!
@@ -49,6 +49,7 @@ func render(_ look: Look, size: Int, units: CGFloat, to url: URL) {
     ctx.translateBy(x: 0, y: CGFloat(size)); ctx.scaleBy(x: 1, y: -1)
     ctx.translateBy(x: CGFloat(size) / 2, y: CGFloat(size) / 2)
     ctx.scaleBy(x: s, y: s)
+    ctx.translateBy(x: shift, y: 0)
     ctx.rotate(by: -12 * .pi / 180)
     let tile = tilePath()
     for (i, x) in [42.0, 46, 50].enumerated() {
@@ -68,10 +69,12 @@ func render(_ look: Look, size: Int, units: CGFloat, to url: URL) {
 
 let assets = URL(fileURLWithPath: "HabitDots/Assets.xcassets")
 let icon = assets.appendingPathComponent("AppIcon.appiconset")
-// 78 dp across: the art fills the icon the way the old one did.
-render(paper, size: 1024, units: 78, to: icon.appendingPathComponent("icon-1024.png"))
-render(night, size: 1024, units: 78, to: icon.appendingPathComponent("icon-1024-dark.png"))
-render(tinted, size: 1024, units: 78, to: icon.appendingPathComponent("icon-1024-tinted.png"))
+// 62 dp across, nudged 4.5 dp right: the stack fills the icon with even margins. iOS has no round
+// mask, so the stack's outline is balanced in the square instead of putting the front tile dead centre.
+let span: CGFloat = 62, nudge: CGFloat = 4.5
+render(paper, size: 1024, units: span, shift: nudge, to: icon.appendingPathComponent("icon-1024.png"))
+render(night, size: 1024, units: span, shift: nudge, to: icon.appendingPathComponent("icon-1024-dark.png"))
+render(tinted, size: 1024, units: span, shift: nudge, to: icon.appendingPathComponent("icon-1024-tinted.png"))
 try! """
 {
   "images" : [
@@ -87,8 +90,8 @@ try! """
 let launch = assets.appendingPathComponent("LaunchIcon.imageset")
 var clearPaper = paper; clearPaper.ground = nil
 var clearNight = night; clearNight.ground = nil
-render(clearPaper, size: 240, units: 78, to: launch.appendingPathComponent("launch.png"))
-render(clearNight, size: 240, units: 78, to: launch.appendingPathComponent("launch-dark.png"))
+render(clearPaper, size: 240, units: span, shift: nudge, to: launch.appendingPathComponent("launch.png"))
+render(clearNight, size: 240, units: span, shift: nudge, to: launch.appendingPathComponent("launch-dark.png"))
 try! """
 {
   "images" : [
