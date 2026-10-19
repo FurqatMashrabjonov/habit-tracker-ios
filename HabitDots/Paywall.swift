@@ -217,21 +217,30 @@ private struct MiniLooks: View {
     }
     private func widget(_ l: L) -> some View {
         let shape = RoundedRectangle(cornerRadius: l.sharp ? 3 : 8, style: .continuous)
-        return VStack(alignment: .leading, spacing: 5) {
-            RoundedRectangle(cornerRadius: 2).fill(l.ink).frame(width: 36, height: 5)
-            HStack(spacing: 3) {
-                ForEach(0..<9, id: \.self) { d in
-                    let on = d % 3 != 1
-                    let dot = RoundedRectangle(cornerRadius: l.round ? 2.5 : l.sharp ? 0 : 1.2, style: .continuous)
-                    ZStack {
-                        if l.outline && !on { dot.stroke(l.ink.opacity(0.45), lineWidth: 1) } else { dot.fill(on ? l.ink : l.off) }
-                        if l.glow && on { dot.stroke(l.ink.opacity(0.35), lineWidth: 2) }
+        // A medium widget: name and check on top, a month of dots (four weeks) under it.
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                RoundedRectangle(cornerRadius: 2).fill(l.ink).frame(width: 40, height: 5)
+                Spacer()
+                RoundedRectangle(cornerRadius: 3, style: .continuous).fill(l.ink).frame(width: 10, height: 10)
+            }
+            VStack(spacing: 2) {
+                ForEach(0..<4, id: \.self) { r in
+                    HStack(spacing: 2) {
+                        ForEach(0..<7, id: \.self) { c in
+                            let on = (r * 7 + c + 2) % 3 != 0
+                            let dot = RoundedRectangle(cornerRadius: l.round ? 2.5 : l.sharp ? 0 : 1.2, style: .continuous)
+                            ZStack {
+                                if l.outline && !on { dot.stroke(l.ink.opacity(0.45), lineWidth: 1) } else { dot.fill(on ? l.ink : l.off) }
+                                if l.glow && on { dot.stroke(l.ink.opacity(0.35), lineWidth: 2) }
+                            }
+                            .frame(width: 5, height: 5)
+                        }
                     }
-                    .frame(width: 7, height: 7)
                 }
             }
         }
-        .padding(8).frame(width: 96, height: 62, alignment: .topLeading)
+        .padding(.horizontal, 8).padding(.vertical, 7).frame(width: 128, height: 72, alignment: .topLeading)
         .background(l.bg, in: shape)
         .overlay { if l.outline { shape.stroke(l.ink, lineWidth: 1) } }
     }
