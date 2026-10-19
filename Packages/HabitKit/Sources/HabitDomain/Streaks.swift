@@ -48,7 +48,8 @@ public func mustNotMissToday(_ done: Set<Day>, today: Day, since: Day, skip: Ski
     if done.contains(today) || skip(today) { return false }
     var day = today - 1
     while day >= since && skip(day) { day = day - 1 }
-    return day >= since && !done.contains(day)
+    // Only while there is a streak to save: after two misses it's already gone.
+    return day >= since && !done.contains(day) && currentStreak(done, today: today, skip: skip) > 0
 }
 
 /// Streak lengths that earn a badge.

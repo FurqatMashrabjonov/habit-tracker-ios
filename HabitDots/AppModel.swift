@@ -192,4 +192,8 @@ final class AppModel {
     func toggle(_ t: Tracker, on day: Day? = nil) {
         _Concurrency.Task { try? await store.quick(t, on: day ?? today) }
     }
+
+    func complete(_ t: Tracker, on day: Day) {
+        _Concurrency.Task { try? await store.complete(t, on: day) }
+    }
 }

@@ -22,6 +22,8 @@ struct TodayView: View {
     /// Ids top to bottom while a card is dragged; saved on drop.
     @State private var order: [Int64]?
     @State private var dragged: Int64?
+    /// A drag has entered a card. onDrag also runs for a long press that only opens the menu.
+    @State private var moving = false
     @Namespace private var zoom
 
     var body: some View {
@@ -162,8 +164,8 @@ struct TodayView: View {
                             order = sorted.map(\.id)
                             return NSItemProvider(object: "\(row.id)" as NSString)
                         }
-                        .onDrop(of: [.text], delegate: Reorder(target: row.id, dragged: $dragged, order: $order) { model.reorder($0) })
-                        .opacity(dragged == row.id ? 0.4 : 1)
+                        .onDrop(of: [.text], delegate: Reorder(target: row.id, dragged: $dragged, moving: $moving, order: $order) { model.reorder($0) })
+                        .opacity(dragged == row.id && moving ? 0.4 : 1)
                         .matchedTransitionSource(id: row.id, in: zoom) { $0.clipShape(RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)) }
                         .transition(.opacity)
                 }
@@ -176,7 +178,7 @@ struct TodayView: View {
         .scrollIndicators(.hidden)
         // A card let go between cards (not on one) still keeps its new place.
         // ponytail: one let go outside the list stays faded until the next drag; a drop there is rare.
-        .onDrop(of: [.text], delegate: Reorder(target: -1, dragged: $dragged, order: $order) { model.reorder($0) })
+        .onDrop(of: [.text], delegate: Reorder(target: -1, dragged: $dragged, moving: $moving, order: $order) { model.reorder($0) })
     }
 
     /// The rows, in the dragged order while a card moves.
@@ -191,7 +193,7 @@ struct TodayView: View {
         let yesterday = model.today - 1
         // Only to catch up on a missed day; a wrong mark is undone from the habit's calendar.
         if row.progress(on: yesterday) < 1 {
-            Button { model.toggle(row.tracker, on: yesterday) } label: { Label("Complete yesterday", image: "Icons/ui-calendar-check-line") }
+            Button { model.complete(row.tracker, on: yesterday) } label: { Label("Complete yesterday", image: "Icons/ui-calendar-check-line") }
         }
         // Sick or away: today becomes a rest day the streak steps over (again to undo).
         if row.progress(on: model.today) < 1 {
@@ -211,10 +213,12 @@ extension Tracker: @retroactive Identifiable {}
 private struct Reorder: DropDelegate {
     let target: Int64
     @Binding var dragged: Int64?
+    @Binding var moving: Bool
     @Binding var order: [Int64]?
     let onDone: ([Int64]) -> Void
 
     func dropEntered(info: DropInfo) {
+        moving = true
         guard let dragged, dragged != target, var o = order,
               let from = o.firstIndex(of: dragged), let to = o.firstIndex(of: target) else { return }
         o.move(fromOffsets: [from], toOffset: to > from ? to + 1 : to)
@@ -227,6 +231,7 @@ private struct Reorder: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         if let order { onDone(order) }
         dragged = nil
+        moving = false
         // The saved order comes back through the live query; until then keep showing this one.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { order = nil }
         return true

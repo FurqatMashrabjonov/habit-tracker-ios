@@ -38,6 +38,20 @@ import HabitDomain
         #expect(try await s.trackers().map(\.sortOrder) == [0, 1])
     }
 
+    @Test func doneCounterClearsAndCompleteFillsTheDay() async throws {
+        let s = try store()
+        var glasses = Tracker(name: "Glasses", icon: "drop")
+        glasses.type = .count
+        glasses.dailyTarget = 8
+        glasses = try await s.save(glasses)
+        for _ in 0..<8 { try await s.quick(glasses, on: today) }
+        try await s.quick(glasses, on: today) // done: back to 0, not a hidden 9
+        #expect(try await s.value(of: glasses.id!, on: today) == 0)
+        try await s.quick(glasses, on: today - 1)
+        try await s.complete(glasses, on: today - 1) // "Complete yesterday" fills it, not +1
+        #expect(try await s.value(of: glasses.id!, on: today - 1) == 8)
+    }
+
     @Test func deletedHabitComesBackWithItsHistory() async throws {
         let s = try store()
         var t = Tracker(name: "Run", icon: "person-simple-run")

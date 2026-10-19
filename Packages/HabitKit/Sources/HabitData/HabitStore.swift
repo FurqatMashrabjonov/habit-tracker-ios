@@ -99,9 +99,16 @@ public final class HabitStore: Sendable {
         let v = max(try value(in: db, of: id, on: date), 0) // a rest day counts as 0
         switch tracker.type {
         case .boolean: try put(Entry(trackerId: id, date: date, value: tracker.isDone(v) ? 0 : v + 1), in: db)
-        case .count: try put(Entry(trackerId: id, date: date, value: v + 1), in: db)
-        case .duration: try put(Entry(trackerId: id, date: date, value: v + 5), in: db)
+        // A done counter clears like a check: past the target the card only shows "8/8", so more taps were invisible.
+        case .count: try put(Entry(trackerId: id, date: date, value: tracker.isDone(v) ? 0 : v + 1), in: db)
+        case .duration: try put(Entry(trackerId: id, date: date, value: tracker.isDone(v) ? 0 : v + 5), in: db)
         }
+    }
+
+    /// Marks the day fully done, whatever its type ("Complete yesterday").
+    public func complete(_ tracker: Tracker, on date: Day) async throws {
+        guard let id = tracker.id else { return }
+        try await db.write { db in try Self.put(Entry(trackerId: id, date: date, value: tracker.target), in: db) }
     }
 
     static func put(_ entry: Entry, in db: Database) throws { var e = entry; e.updatedAt = Clock.nowMillis(); try e.save(db) }

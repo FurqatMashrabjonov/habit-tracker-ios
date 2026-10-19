@@ -159,6 +159,7 @@ private struct TrashPage: View {
     @Environment(\.palette) private var palette
     @State private var items: [TrashedHabit] = []
     @State private var restored: String?
+    @State private var paywall = false
     var body: some View {
         Page {
             if !items.isEmpty {
@@ -166,6 +167,8 @@ private struct TrashPage: View {
                     ForEach(items, id: \.uuid) { item in
                         let left = max(Trash.keepDays - Int((Clock.nowMillis() - item.deletedAt) / 86_400_000), 1)
                         Row(label: item.name, value: "\(left) days left", chevron: false) {
+                            // Bringing one back counts against the free limit, like unarchiving.
+                            guard Store.shared.canAddHabit(activeHabits: model.rows?.count ?? 0) else { paywall = true; return }
                             _Concurrency.Task {
                                 try? await model.store.restore(item)
                                 restored = item.name
@@ -178,6 +181,7 @@ private struct TrashPage: View {
             FootNote(items.isEmpty ? "Nothing here. Deleted habits stay for 30 days." : "Tap a habit to bring it back with its whole history.")
         }
         .navigationTitle("Recently deleted")
+        .sheet(isPresented: $paywall) { Paywall() }
         .task { items = (try? await model.store.trash()) ?? [] }
         .overlay(alignment: .bottom) {
             if let restored { Toast(text: "Restored “\(restored)”").task { try? await _Concurrency.Task.sleep(for: .seconds(2)); self.restored = nil } }

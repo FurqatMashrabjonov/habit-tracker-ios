@@ -60,6 +60,12 @@ import Testing
         #expect(!mustNotMissToday(days(0), today: today, since: since))
         #expect(!mustNotMissToday([], today: today, since: today))
     }
+
+    @Test func noWarningOnceTheStreakIsGone() {
+        // Done 12-20 days ago, nothing since: two misses already broke it.
+        #expect(!mustNotMissToday(Set((12...20).map { today - $0 }), today: today, since: today - 60))
+        #expect(!mustNotMissToday([], today: today, since: today - 60))
+    }
 }
 
 @Suite struct ScheduleTests {
