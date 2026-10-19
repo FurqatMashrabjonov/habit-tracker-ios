@@ -29,7 +29,7 @@ Where both apps stand, what was decided, and what comes next. Same file in both 
   - *Evening check-in*: one notification at a chosen time (21:00 by default), only when some of today's habits are still open; nothing on days everything is done. Android decides at fire time (`task/EveningNudge.kt`). iOS schedules the next three evenings with the reminders and rebuilds them on every change; a check from a widget or a notification's Done redoes tonight's (`Shared/Nudge.swift`, `ReminderPlan.nudges`).
   - *App icon*: no longer a Pro choice (removed 2026-10-19); the artwork is the original one (tiles at x 45.75/51.25/56.75/62.25, tilted −12°). A centred version and a bigger iOS crop were tried the same day and reverted at the user's request. iOS: `AppIcon` has the original Paper icon, the original Night icon as its dark rendition and a tinted rendition (`tools/gen_app_icon.swift` writes only the tinted one), so it follows the home screen's icon style (Edit → Customize; Automatic follows dark mode). Android: launchers don't reload icons on a theme change (tried `drawable-night`; Pixel Launcher ignores it), so the monochrome layer is the theme-following path (Android 13+ themed icons). The launcher entry is `MainActivity` again, as in Play 1.0.
   - Signed in but Pro lapsed: the Sync page says sync is paused and offers Pro.
-- **Prices** (set by hand in the stores): Yearly **$7.99** with a 7-day trial (default choice), Lifetime **$19.99** as the hero, launch price **$14.99** until ~2027-01-31. No monthly. Regional prices by purchasing power: BR/TR/MX/KZ ~50%, IN/ID ~35%, UZ ~25–30% of the US price. Research and the full table: see the Pro research in the 2026-10-19 session.
+- **Prices** (set by hand in the stores): Yearly **$7.99** with a 7-day trial (default choice), Lifetime **$19.99** as the hero, launch price **$14.99** until ~2027-01-31. No monthly. Regional prices by purchasing power; the per-country table (what is actually in Play Console) is under "Prices" below — reuse it for the App Store.
 - **Next Pro candidates** (not built): sections (Morning/Evening), a year wall with a "2026 in dots" share card before the new year, later a web version.
 
 ## Billing through RevenueCat (2026-10-19, both platforms)
@@ -78,60 +78,65 @@ These are not in git and must be copied by hand: `habit/app/google-services.json
 
 **Store setup (by hand, before release)**
 0. RevenueCat: upload the Play service-account JSON and turn on Real-time developer notifications (see "Billing through RevenueCat"). Do this first: the credentials can take a day and a half to start working. Then test a license-tester purchase on a Play build, and one Google account on both phones.
-1. Play Console: enrol in the 15% service fee; set the prices and regional prices below; check `pro_yearly` (base plan `yearly`, 7-day free trial offer for new customers) and `pro_lifetime`; store listing text for the new Pro (unlimited habits, evening check-in, home screen looks, sync); data-safety form declares crash logs (Crashlytics).
+1. Play Console: enrol in the 15% service fee; prices per country are entered and saved (2026-10-19, table under "Prices" below); check `pro_yearly` (base plan `yearly`, 7-day free trial offer for new customers) and `pro_lifetime`; store listing text for the new Pro (unlimited habits, evening check-in, home screen looks, sync); data-safety form declares crash logs (Crashlytics).
 2. On or after **2026-10-30**: Android production release with a new `versionCode` (1.0.1 / versionCode 3 was never uploaded).
-3. Apple: developer account ($99, international card), Small Business Program (15%), Agreements → Banking (Uzum Bank USD, else Payoneer/Wise), W-8BEN, same prices and tiers; then `DEVELOPMENT_TEAM` in `project.yml` → TestFlight. On a signed build check what the simulator can't: real widgets in every look, the Inbox widget's Show option, a check from a widget refreshing the app, Liquid Glass.
+3. Apple: developer account ($99, international card), Small Business Program (15%), Agreements → Banking (Uzum Bank USD, else Payoneer/Wise), W-8BEN, the same per-country prices as Play (table under "Prices"; nearest Apple tier); then `DEVELOPMENT_TEAM` in `project.yml` → TestFlight. On a signed build check what the simulator can't: real widgets in every look, the Inbox widget's Show option, a check from a widget refreshing the app, Liquid Glass.
 4. Calendar: **2027-01-31** raise Lifetime from the launch $14.99 to $19.99 (the app reads prices from the store; no code change).
 
-**Prices** (researched 2026-10-19: World Bank 2024 price levels, Spotify's 46-country ladder, HabitKit's and Habitify's real Play prices per country; FX of 2026-10-19). Enter by hand per country in Play Console (Monetize → Products → Subscriptions → `pro_yearly` → base plan `yearly`; One-time products → `pro_lifetime`); Play's own "convert" is exchange rate only, no purchasing-power cut. Prices are tax-inclusive where Play shows them so (EU, UK, TR, BR, IN, …): the EU/UK prices sit at the US sticker on purpose, the VAT comes out of them. Countries not listed: leave Play's conversion. Russia/Belarus: Play billing is off, nothing to set.
+**Prices — what is in Play Console (entered and saved 2026-10-19).** Basis: World Bank 2024 price levels, Spotify's per-country ladder, HabitKit's and Habitify's real Play prices; FX of 2026-10-19. How it was done: "Set prices" from the US base ($7.99 / $14.99) lets Play convert, and Play's conversion already adds VAT where the shown price is tax-inclusive (EU, UK, Nordics, AU, JP, …) — those 100%-tier rows were kept as Play made them (so €8.49, not €7.99). Every other row below was then typed by hand (Monetize → Products → Subscriptions → `pro_yearly` → base plan `yearly`; One-time products → `pro_lifetime` → purchase option `buy`). Countries not listed keep Play's conversion. Russia/Belarus: Play billing is off. Kyrgyzstan/Tajikistan: Play has no subscriptions there, only the one-time product (priced in USD).
 
-| Country | Cur. | % of US | Yearly | Lifetime launch | Lifetime from 2027-02 |
+The same numbers go into App Store Connect when the Apple account exists: Apple's prices are tax-inclusive on every storefront and come in fixed tiers, so pick the nearest tier to each row (start from the US price, then override the discounted countries by hand; Apple's automatic equalisation does no purchasing-power cut either).
+
+| Country | Cur. | % of US | Yearly (7-day trial) | Lifetime launch (now) | Lifetime from 2027-02 (planned) |
 |---|---|---|---|---|---|
 | United States | USD | 100 | 7.99 | 14.99 | 19.99 |
 | Canada | CAD | 100 | 10.99 | 20.99 | 27.99 |
-| United Kingdom | GBP | 100 | 6.99 | 12.99 | 17.99 |
-| Eurozone (one price) | EUR | 100 | 7.99 | 14.99 | 19.99 |
-| Switzerland | CHF | 100 | 7.00 | 13.00 | 17.00 |
-| Sweden | SEK | 100 | 79 | 149 | 199 |
-| Norway | NOK | 100 | 79 | 139 | 189 |
-| Denmark | DKK | 100 | 55 | 99 | 135 |
+| United Kingdom | GBP | 100 | 6.99 | 13.49 | 17.99 |
+| Eurozone | EUR | 100 | 8.49 (FI, GR, IE, PT 8.99) | 15.99 (FI, GR 16.99) | 20.99 (21.99) |
+| Switzerland | CHF | 100 | 6.60 | 12.00 | 16.00 |
+| Sweden | SEK | 100 | 99 | 185 | 245 |
+| Norway | NOK | 100 | 95 | 175 | 235 |
+| Denmark | DKK | 100 | 65 | 125 | 165 |
 | Australia | AUD | 100 | 11.99 | 21.99 | 28.99 |
-| New Zealand | NZD | 100 | 13.99 | 26.99 | 34.99 |
-| Japan | JPY | 100 | 1,200 | 2,300 | 3,000 |
-| South Korea | KRW | 90 | 9,900 | 17,900 | 24,900 |
-| Singapore | SGD | 100 | 10.98 | 19.98 | 25.98 |
-| Hong Kong | HKD | 100 | 62 | 118 | 158 |
-| Taiwan | TWD | 70 | 180 | 340 | 450 |
+| New Zealand | NZD | 100 | 15.99 | 29.99 | 39.99 |
+| Japan | JPY | 100 | 1,390 | 2,620 | 3,500 |
+| South Korea | KRW | 90 | 9,900 | 19,900 | 24,900 |
+| Singapore | SGD | 100 | 10.99 | 20.98 | 27.98 |
+| Hong Kong | HKD | 100 | 60.90 | 118 | 158 |
+| Taiwan | TWD | 70 | 190 | 360 | 450 |
 | Israel | ILS | 100 | 24.90 | 46.90 | 62.90 |
-| UAE | AED | 100 | 28.99 | 54.99 | 72.99 |
-| Saudi Arabia | SAR | 100 | 29.99 | 55.99 | 74.99 |
-| Poland | PLN | 60 | 18.99 | 34.99 | 46.99 |
-| Czechia | CZK | 60 | 99 | 199 | 259 |
-| Hungary | HUF | 60 | 1,490 | 2,890 | 3,890 |
-| Romania | RON | 50 | 18.99 | 35.99 | 46.99 |
-| Brazil | BRL | 45 | 18.90 | 34.90 | 45.90 |
-| Mexico | MXN | 55 | 79 | 149 | 199 |
+| UAE | AED | 100 | 30.99 | 57.99 | 77.99 |
+| Saudi Arabia | SAR | 100 | 33.99 | 64.99 | 84.99 |
+| Qatar | QAR | 100 | 29 | 55 | 73 |
+| Kuwait | USD | 100 | 7.99 | 14.99 | 19.99 |
+| Poland | PLN | 60 | 22.99 | 42.99 | 56.99 |
+| Czechia | CZK | 60 | 129 | 239 | 319 |
+| Hungary | HUF | 60 | 1,990 | 3,690 | 4,890 |
+| Romania | RON | 50 | 22.99 | 42.99 | 56.99 |
+| Brazil | BRL | 45 | 17.90 | 34.90 | 45.90 |
+| Mexico | MXN | 55 | 95 | 179 | 239 |
 | Argentina | ARS | 35 | 3,999 | 7,999 | 10,999 |
-| Chile | CLP | 45 | 3,500 | 6,600 | 8,800 |
+| Chile | CLP | 45 | 4,200 | 7,900 | 10,500 |
 | Colombia | COP | 40 | 9,900 | 18,900 | 24,900 |
-| South Africa | ZAR | 45 | 59.99 | 109.99 | 149.99 |
-| Türkiye | TRY | 35 | 139.99 | 259.99 | 349.99 |
-| Kazakhstan | KZT | 40 | 1,490 | 2,690 | 3,590 |
-| Ukraine | UAH | 35 | 124.99 | 234.99 | 314.99 |
-| Malaysia | MYR | 45 | 14.90 | 27.90 | 36.90 |
-| Thailand | THB | 40 | 109 | 199 | 269 |
-| India | INR | 30 | 229 | 429 | 579 |
-| Indonesia | IDR | 30 | 42,000 | 79,000 | 109,000 |
-| Philippines | PHP | 35 | 179 | 329 | 449 |
-| Vietnam | VND | 30 | 59,000 | 115,000 | 155,000 |
-| Egypt | EGP | 25 | 99.99 | 199.99 | 269.99 |
-| Pakistan | PKR | 25 | 549 | 1,049 | 1,399 |
-| Nigeria | NGN | 20 | 2,100 | 4,000 | 5,300 |
-| Bangladesh | BDT | 25 | 249 | 459 | 619 |
+| South Africa | ZAR | 45 | 69.99 | 129.99 | 169.99 |
+| Türkiye | TRY | 35 | 169.99 | 309.99 | 409.99 |
+| Kazakhstan | KZT | 40 | 1,690 | 3,190 | 4,290 |
+| Ukraine | UAH | 35 | 149.99 | 279.99 | 369.99 |
+| Malaysia | MYR | 45 | 15.90 | 29.90 | 39.90 |
+| Thailand | THB | 40 | 109 | 219 | 289 |
+| India | INR | 30 | 269 | 499 | 649 |
+| Indonesia | IDR | 30 | 45,000 | 79,000 | 105,000 |
+| Philippines | PHP | 35 | 199 | 369 | 489 |
+| Vietnam | VND | 30 | 62,000 | 115,000 | 155,000 |
+| Egypt | EGP | 25 | 119.99 | 229.99 | 299.99 |
+| Pakistan | PKR | 25 | 550 | 1,050 | 1,400 |
+| Bangladesh | BDT | 25 | 275 | 520 | 690 |
 | Uzbekistan | UZS | 25 | 24,900 | 46,900 | 59,900 |
-| Kyrgyzstan | KGS | 25 | 169 | 329 | 439 |
+| Kyrgyzstan | USD | 25 | — (no Play subscriptions) | 3.99 | 4.99 |
+| Tajikistan | USD | 25 | — (no Play subscriptions) | 3.99 | 4.99 |
+| Nigeria | NGN | 20 | 2,300 | 4,300 | 5,700 |
 
-Keep the yearly : lifetime ratio the same everywhere (≈1 : 1.9 at launch, 1 : 2.5 after), so the paywall's "pays off in N years" line stays true. Review once a year: TRY, ARS, EGP, NGN and PKR lose value fast.
+Yearly : lifetime is ≈1 : 1.9 at launch and ≈1 : 2.5 after, so the paywall's "pays off in N years" line stays true. Review once a year: TRY, ARS, EGP, NGN and PKR lose value fast.
 
 **Code, next phase**
 5. Priority placement: where the Inbox priority flag and ordering show on widgets and the home screen.
