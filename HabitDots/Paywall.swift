@@ -29,7 +29,7 @@ struct Paywall: View {
                     FeatureTile(title: "Evening check-in", note: "A nudge only when today is still open") { MiniNudge() }
                 }
                 GridRow {
-                    FeatureTile(title: "Home screen looks", note: "Widget looks, dot shapes and app icons") { MiniLooks() }
+                    FeatureTile(title: "Home screen looks", note: "Widget looks and dot shapes") { MiniLooks() }
                     FeatureTile(title: "Sync", note: "The same dots on every phone") { MiniSync() }
                 }
             }

@@ -41,10 +41,8 @@ struct SettingsSheet: View {
                 RowGroup {
                     if store.active {
                         NavRow(label: "Evening check-in", icon: "ui-bell", value: nudge ? ClockTime(secondOfDay: nudgeAt).description : "Off") { NudgePage() }
-                        NavRow(label: "App icon", icon: "ui-squares-four", value: AppIconChoice.current.name) { IconPage() }
                     } else {
                         Row(label: "Evening check-in", icon: "ui-bell", value: "Pro") { paywall = true }
-                        Row(label: "App icon", icon: "ui-squares-four", value: "Pro") { paywall = true }
                     }
                 }
                 GroupTitle("Data")
@@ -468,45 +466,5 @@ private struct NudgePage: View {
         .sheet(isPresented: $picking) {
             TimeSheet(time: ClockTime(secondOfDay: at), title: "Evening check-in") { at = $0.secondOfDay; model.remindersChanged() }
         }
-    }
-}
-
-/// Pro's app icons: the default and three alternates in the asset catalog.
-enum AppIconChoice: String, CaseIterable {
-    case paper = "Paper", night = "Night", mono = "Mono", dots = "Dots"
-    var name: String { rawValue }
-    /// The alternate icon's asset name; nil is the default icon.
-    var asset: String? { self == .paper ? nil : "AppIcon-\(rawValue)" }
-    static var current: AppIconChoice { allCases.first { $0.asset == UIApplication.shared.alternateIconName } ?? .paper }
-}
-
-private struct IconPage: View {
-    @Environment(\.palette) private var palette
-    @State private var current = AppIconChoice.current
-    var body: some View {
-        Page {
-            HStack(spacing: 0) {
-                ForEach(AppIconChoice.allCases, id: \.self) { icon in
-                    let on = icon == current
-                    Button {
-                        guard !on else { return }
-                        UIApplication.shared.setAlternateIconName(icon.asset) { _ in current = AppIconChoice.current }
-                    } label: {
-                        VStack(spacing: 6) {
-                            Image("IconPreview-\(icon.name)").resizable().frame(width: 64, height: 64)
-                                .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
-                                .overlay(RoundedRectangle(cornerRadius: 15, style: .continuous)
-                                    .stroke(on ? palette.ink : palette.hairline, lineWidth: on ? 2 : 1))
-                            Text(icon.name).font(Type.labelMedium)
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(icon.name + (on ? ", selected" : ""))
-                }
-            }
-            .padding(.vertical, 8)
-        }
-        .navigationTitle("App icon")
     }
 }
