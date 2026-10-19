@@ -119,6 +119,8 @@ struct TodayView: View {
             HStack(spacing: 10) {
                 RoundIconButton(icon: "ui-gear-six", label: "Settings") { settings = true }
                 Spacer()
+                // How the cards look sits by the list it changes, not three taps away in Settings.
+                if !inbox { CardStyleButton(sample: sorted.first).transition(.opacity) }
                 AddButton(label: inbox ? "New task" : "New habit") {
                     if inbox { var t = Task(title: ""); t.dueDate = model.today; taskSheet = t }
                     // A new habit past the free limit opens the paywall instead of the editor.
@@ -131,8 +133,6 @@ struct TodayView: View {
                     .font(Type.titleLarge)
                     .contentTransition(.opacity)
                 Spacer()
-                // How the cards look sits by the list it changes, not three taps away in Settings.
-                if !inbox { CardStyleButton(sample: sorted.first).transition(.opacity) }
             }
             .frame(height: 48)
             .animation(.easeOut(duration: 0.22), value: inbox)
@@ -385,22 +385,15 @@ struct AddButton: View {
 }
 
 /// Round header button with a soft press bounce.
-/// A small round button after the page title that opens the card style picker.
+/// A round button by the add button, like Settings: its icon is the card style in use; a tap opens the picker.
 struct CardStyleButton: View {
     let sample: HabitRow?
     @State private var picking = false
     @AppStorage("cards") private var cards = CardStyle.wall
-    @Environment(\.palette) private var palette
     var body: some View {
-        Button { picking = true } label: {
-            Image("Icons/ui-cards-wall").resizable().frame(width: 16, height: 16)
-                .foregroundStyle(palette.dim)
-                .frame(width: 30, height: 30)
-                .background(palette.tile, in: Circle())
-        }
-        .buttonStyle(Bouncy(scale: 0.9))
-        .accessibilityLabel("Card style, \(cards.label)")
-        .sheet(isPresented: $picking) { CardStylePicker(sample: sample) }
+        RoundIconButton(icon: cards == .wall ? "ui-cards-wall" : cards == .compact ? "ui-squares-four" : "ui-list",
+                        label: "Card style, \(cards.label)") { picking = true }
+            .sheet(isPresented: $picking) { CardStylePicker(sample: sample) }
     }
 }
 
@@ -418,45 +411,37 @@ struct CardStylePicker: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 18) {
+                VStack(spacing: 28) {
                     ForEach(CardStyle.allCases, id: \.self) { s in
                         let on = cards == s
-                        Button {
-                            cards = s
-                            // Let the check land, then go: the list behind is already redrawn.
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { dismiss() }
-                        } label: {
-                            VStack(alignment: .leading, spacing: 10) {
-                                if let sample {
-                                    HabitCard(row: sample, today: model.today, style: s) {}
-                                        .allowsHitTesting(false)
-                                } else {
-                                    HabitCard(row: Self.demo(today: model.today), today: model.today, style: s) {}
-                                        .allowsHitTesting(false)
+                        VStack(alignment: .leading, spacing: 8) {
+                            // The name over its card; the one in use reads in ink and says so.
+                            HStack(spacing: 0) {
+                                Text(s.label).font(Type.titleSmall).foregroundStyle(on ? palette.ink : palette.dim)
+                                Text("  ·  " + s.note).font(Type.bodySmall).foregroundStyle(palette.dim).lineLimit(1)
+                                Spacer(minLength: 8)
+                                if on {
+                                    Text("In use").font(Type.labelSmall).foregroundStyle(palette.onInk)
+                                        .padding(.horizontal, 8).padding(.vertical, 3).background(palette.ink, in: Capsule())
                                 }
-                                HStack(spacing: 10) {
-                                    VStack(alignment: .leading, spacing: 1) {
-                                        Text(s.label).font(Type.titleSmall)
-                                        Text(s.note).font(Type.bodySmall).foregroundStyle(palette.dim)
-                                    }
-                                    Spacer()
-                                    ZStack {
-                                        Circle().fill(on ? palette.ink : .clear)
-                                        Circle().stroke(on ? .clear : palette.outline, lineWidth: 1.5)
-                                        if on { Image("Icons/ui-check").resizable().frame(width: 12, height: 12).foregroundStyle(palette.onInk) }
-                                    }
-                                    .frame(width: 22, height: 22)
-                                }
-                                .padding(.horizontal, 4)
                             }
-                            .padding(10)
-                            .background(palette.background, in: RoundedRectangle(cornerRadius: Radius.medium + 6, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: Radius.medium + 6, style: .continuous)
-                                .stroke(on ? palette.ink : palette.hairline, lineWidth: on ? 2 : 1))
-                            .animation(.easeOut(duration: 0.2), value: on)
+                            .padding(.horizontal, 4)
+                            // The real card on a slab of its own, so the three never run together;
+                            // the whole slab is the choice: one tap and it's done.
+                            Button {
+                                cards = s
+                                dismiss()
+                            } label: {
+                                HabitCard(row: sample ?? Self.demo(today: model.today), today: model.today, style: s) {}
+                                    .allowsHitTesting(false)
+                                    .padding(14)
+                                    .background(palette.ink.opacity(on ? 0.14 : 0.05), in: RoundedRectangle(cornerRadius: Radius.medium + 10, style: .continuous))
+                                    // The card ignores touches; this layer takes them for the whole slab.
+                                    .overlay(Color.clear.contentShape(Rectangle()))
+                            }
+                            .buttonStyle(Bouncy(scale: 0.97))
+                            .accessibilityLabel(s.label + (on ? ", in use" : ""))
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(s.label + (on ? ", selected" : ""))
                     }
                 }
                 .padding(16)
