@@ -83,15 +83,55 @@ These are not in git and must be copied by hand: `habit/app/google-services.json
 3. Apple: developer account ($99, international card), Small Business Program (15%), Agreements → Banking (Uzum Bank USD, else Payoneer/Wise), W-8BEN, same prices and tiers; then `DEVELOPMENT_TEAM` in `project.yml` → TestFlight. On a signed build check what the simulator can't: real widgets in every look, the Inbox widget's Show option, a check from a widget refreshing the app, Liquid Glass.
 4. Calendar: **2027-01-31** raise Lifetime from the launch $14.99 to $19.99 (the app reads prices from the store; no code change).
 
-**Prices** (US base; Play converts, then override these countries by hand and round to a local-looking price)
+**Prices** (researched 2026-10-19: World Bank 2024 price levels, Spotify's 46-country ladder, HabitKit's and Habitify's real Play prices per country; FX of 2026-10-19). Enter by hand per country in Play Console (Monetize → Products → Subscriptions → `pro_yearly` → base plan `yearly`; One-time products → `pro_lifetime`); Play's own "convert" is exchange rate only, no purchasing-power cut. Prices are tax-inclusive where Play shows them so (EU, UK, TR, BR, IN, …): the EU/UK prices sit at the US sticker on purpose, the VAT comes out of them. Countries not listed: leave Play's conversion. Russia/Belarus: Play billing is off, nothing to set.
 
-| Tier | Countries | Yearly | Lifetime (launch → later) |
-|---|---|---|---|
-| T1 100% | US, CA, UK, EU, AU, NZ, JP, KR, Gulf, CH, Nordics | $7.99 | $14.99 → $19.99 |
-| T2 ~70% | PL, CZ, HU, RO, GR, PT, CL (optional; Play's own conversion is fine to start) | ~$5.49 | ~$9.99 → $13.99 |
-| T3 ~50% | BR, TR, MX, KZ, AR, CO, ZA, MY, TH | ~$3.99 | ~$7.49 → $9.99 |
-| T4 ~35% | IN, ID, PH, VN, EG, PK, NG, BD | ~$2.79 | ~$4.99 → $6.99 |
-| T5 ~25–30% | UZ, KG, TJ | ~$2.29 | ~$3.99 → $5.49 |
+| Country | Cur. | % of US | Yearly | Lifetime launch | Lifetime from 2027-02 |
+|---|---|---|---|---|---|
+| United States | USD | 100 | 7.99 | 14.99 | 19.99 |
+| Canada | CAD | 100 | 10.99 | 20.99 | 27.99 |
+| United Kingdom | GBP | 100 | 6.99 | 12.99 | 17.99 |
+| Eurozone (one price) | EUR | 100 | 7.99 | 14.99 | 19.99 |
+| Switzerland | CHF | 100 | 7.00 | 13.00 | 17.00 |
+| Sweden | SEK | 100 | 79 | 149 | 199 |
+| Norway | NOK | 100 | 79 | 139 | 189 |
+| Denmark | DKK | 100 | 55 | 99 | 135 |
+| Australia | AUD | 100 | 11.99 | 21.99 | 28.99 |
+| New Zealand | NZD | 100 | 13.99 | 26.99 | 34.99 |
+| Japan | JPY | 100 | 1,200 | 2,300 | 3,000 |
+| South Korea | KRW | 90 | 9,900 | 17,900 | 24,900 |
+| Singapore | SGD | 100 | 10.98 | 19.98 | 25.98 |
+| Hong Kong | HKD | 100 | 62 | 118 | 158 |
+| Taiwan | TWD | 70 | 180 | 340 | 450 |
+| Israel | ILS | 100 | 24.90 | 46.90 | 62.90 |
+| UAE | AED | 100 | 28.99 | 54.99 | 72.99 |
+| Saudi Arabia | SAR | 100 | 29.99 | 55.99 | 74.99 |
+| Poland | PLN | 60 | 18.99 | 34.99 | 46.99 |
+| Czechia | CZK | 60 | 99 | 199 | 259 |
+| Hungary | HUF | 60 | 1,490 | 2,890 | 3,890 |
+| Romania | RON | 50 | 18.99 | 35.99 | 46.99 |
+| Brazil | BRL | 45 | 18.90 | 34.90 | 45.90 |
+| Mexico | MXN | 55 | 79 | 149 | 199 |
+| Argentina | ARS | 35 | 3,999 | 7,999 | 10,999 |
+| Chile | CLP | 45 | 3,500 | 6,600 | 8,800 |
+| Colombia | COP | 40 | 9,900 | 18,900 | 24,900 |
+| South Africa | ZAR | 45 | 59.99 | 109.99 | 149.99 |
+| Türkiye | TRY | 35 | 139.99 | 259.99 | 349.99 |
+| Kazakhstan | KZT | 40 | 1,490 | 2,690 | 3,590 |
+| Ukraine | UAH | 35 | 124.99 | 234.99 | 314.99 |
+| Malaysia | MYR | 45 | 14.90 | 27.90 | 36.90 |
+| Thailand | THB | 40 | 109 | 199 | 269 |
+| India | INR | 30 | 229 | 429 | 579 |
+| Indonesia | IDR | 30 | 42,000 | 79,000 | 109,000 |
+| Philippines | PHP | 35 | 179 | 329 | 449 |
+| Vietnam | VND | 30 | 59,000 | 115,000 | 155,000 |
+| Egypt | EGP | 25 | 99.99 | 199.99 | 269.99 |
+| Pakistan | PKR | 25 | 549 | 1,049 | 1,399 |
+| Nigeria | NGN | 20 | 2,100 | 4,000 | 5,300 |
+| Bangladesh | BDT | 25 | 249 | 459 | 619 |
+| Uzbekistan | UZS | 25 | 24,900 | 46,900 | 59,900 |
+| Kyrgyzstan | KGS | 25 | 169 | 329 | 439 |
+
+Keep the yearly : lifetime ratio the same everywhere (≈1 : 1.9 at launch, 1 : 2.5 after), so the paywall's "pays off in N years" line stays true. Review once a year: TRY, ARS, EGP, NGN and PKR lose value fast.
 
 **Code, next phase**
 5. Priority placement: where the Inbox priority flag and ordering show on widgets and the home screen.
