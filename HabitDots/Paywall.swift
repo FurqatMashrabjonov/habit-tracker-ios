@@ -19,10 +19,9 @@ struct Paywall: View {
         // Scrolls when large text doesn't fit, so the billing terms are never cut off.
         ScrollView {
         VStack(alignment: .leading, spacing: 14) {
-            // The user's own wall fills in, dot by dot, with the count of its days: what Pro keeps growing.
-            WallHero()
-            Text("Keep the wall growing.").font(Type.headlineSmall)
-            Text("Four habits are free, forever. Pro adds:").font(Type.bodyMedium).foregroundStyle(palette.dim)
+            Text("HabitDots Pro").font(Type.headlineSmall)
+            Text("Everything you see is free: tracking, every widget, reminders and your data, with up to \(Store.freeHabits) habits. Pro adds:")
+                .font(Type.bodyMedium).foregroundStyle(palette.dim)
             // What you get, each alive: a wall that keeps filling, a nudge that drops in, a widget changing its look, two phones in step.
             Grid(horizontalSpacing: 10, verticalSpacing: 10) {
                 GridRow {
@@ -135,7 +134,7 @@ private struct FeatureTile<Picture: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             picture
-                .frame(maxWidth: .infinity).frame(height: 56)
+                .frame(maxWidth: .infinity).frame(height: 88)
                 .background(palette.tile, in: RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
             Text(title).font(Type.labelLarge)
             Text(note).font(Type.labelSmall).foregroundStyle(palette.dim).lineLimit(2, reservesSpace: true)
@@ -152,40 +151,10 @@ private func phase(_ date: Date, period: Double, rest: Double = 1.2) -> Double {
     min(date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period + rest) / period, 1)
 }
 
-/// The hero: the first habit's last weeks as a wall that fills in chronologically, and how many days are
-/// on it. A phone with no history gets a sample wall, so the page still shows what it is about.
-private struct WallHero: View {
-    // The sheet is presented above where the model is injected, so it is read directly.
-    private let model = AppModel.shared
-    @Environment(\.palette) private var palette
-    @State private var t = 0.0
-    private let weeks = 18
-    var body: some View {
-        let today = model.today
-        let from = today.weekStart - 7 * (weeks - 1)
-        let real = (model.rows?.first?.progress ?? [:]).filter { $0.key >= from && $0.key <= today && $0.value >= 1 }.keys.sorted()
-        let done: [Day] = real.count >= 5 ? real : (0...(today - from)).map { from + $0 }.enumerated().filter { ($0.offset * 2654435761) % 100 < 72 }.map(\.element)
-        let shown = min(Int(t * Double(done.count)), done.count)
-        HStack(spacing: 14) {
-            Canvas { ctx, size in
-                let cell = size.width / (CGFloat(weeks) * 1.2 - 0.2)
-                let data = Dictionary(uniqueKeysWithValues: done.prefix(shown).map { ($0, 1.0) })
-                ctx.drawHeatmap(data, color: palette.ink, from: from, last: today, cell: cell)
-            }
-            .frame(height: 48 * 8.2 / 7)
-            VStack(alignment: .leading, spacing: 0) {
-                Text("\(shown)").font(Type.displaySmall).contentTransition(.numericText())
-                Text("days").font(Type.labelSmall).foregroundStyle(palette.dim)
-            }
-        }
-        .onAppear { t = 0; withAnimation(.easeOut(duration: 1.8)) { t = 1 } }
-    }
-}
-
 /// A small wall that keeps filling in, one dot at a time.
 private struct MiniWall: View {
     @Environment(\.palette) private var palette
-    private let rows = ["1101111011", "1110111101", "0111011111"]
+    private let rows = ["1101111011", "1110111101", "0111011111", "1011110111", "1111011011"]
     var body: some View {
         TimelineView(.animation) { tl in
             let t = phase(tl.date, period: 2.6)
@@ -196,7 +165,7 @@ private struct MiniWall: View {
                     HStack(spacing: 3) {
                         ForEach(Array(row.enumerated()), id: \.offset) { _, c in
                             let on = c == "1" && { defer { k += 1 }; return Double(k) < t * Double(total) }()
-                            RoundedRectangle(cornerRadius: 2.5, style: .continuous).fill(on ? palette.ink : palette.tint).frame(width: 9, height: 9)
+                            RoundedRectangle(cornerRadius: 3, style: .continuous).fill(on ? palette.ink : palette.tint).frame(width: 11, height: 11)
                         }
                     }
                 }
@@ -215,7 +184,7 @@ private struct MiniNudge: View {
             let e = 1 - pow(1 - k, 3)
             HStack(spacing: 6) {
                 RoundedRectangle(cornerRadius: 4, style: .continuous).fill(palette.ink).frame(width: 12, height: 12)
-                Text("2 still open").font(Type.labelSmall.weight(.semibold))
+                Text("2 still open").font(Type.labelMedium.weight(.semibold))
             }
             .padding(.horizontal, 8).padding(.vertical, 5)
             .background(palette.background, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -249,20 +218,20 @@ private struct MiniLooks: View {
     private func widget(_ l: L) -> some View {
         let shape = RoundedRectangle(cornerRadius: l.sharp ? 3 : 8, style: .continuous)
         return VStack(alignment: .leading, spacing: 5) {
-            RoundedRectangle(cornerRadius: 2).fill(l.ink).frame(width: 24, height: 4)
-            HStack(spacing: 2) {
-                ForEach(0..<7, id: \.self) { d in
+            RoundedRectangle(cornerRadius: 2).fill(l.ink).frame(width: 36, height: 5)
+            HStack(spacing: 3) {
+                ForEach(0..<9, id: \.self) { d in
                     let on = d % 3 != 1
                     let dot = RoundedRectangle(cornerRadius: l.round ? 2.5 : l.sharp ? 0 : 1.2, style: .continuous)
                     ZStack {
                         if l.outline && !on { dot.stroke(l.ink.opacity(0.45), lineWidth: 1) } else { dot.fill(on ? l.ink : l.off) }
                         if l.glow && on { dot.stroke(l.ink.opacity(0.35), lineWidth: 2) }
                     }
-                    .frame(width: 5, height: 5)
+                    .frame(width: 7, height: 7)
                 }
             }
         }
-        .padding(6).frame(width: 62, height: 40, alignment: .topLeading)
+        .padding(8).frame(width: 96, height: 62, alignment: .topLeading)
         .background(l.bg, in: shape)
         .overlay { if l.outline { shape.stroke(l.ink, lineWidth: 1) } }
     }
@@ -276,7 +245,7 @@ private struct MiniSync: View {
             let t = phase(tl.date, period: 2.4, rest: 0.9)
             HStack(spacing: 8) {
                 phone(t)
-                Image("Icons/ui-cloud").resizable().frame(width: 22, height: 22).opacity(0.45 + 0.55 * sin(t * .pi))
+                Image("Icons/ui-cloud").resizable().frame(width: 26, height: 26).opacity(0.45 + 0.55 * sin(t * .pi))
                 phone(t)
             }
         }
@@ -288,14 +257,14 @@ private struct MiniSync: View {
                     ForEach(0..<3, id: \.self) { c in
                         let i = r * 3 + c
                         let on = (i * 7) % 5 != 2 && Double(i) < t * 9
-                        RoundedRectangle(cornerRadius: 1).fill(on ? palette.ink : palette.ink.opacity(0.15)).frame(width: 3, height: 3)
+                        RoundedRectangle(cornerRadius: 1.5).fill(on ? palette.ink : palette.ink.opacity(0.15)).frame(width: 5, height: 5)
                     }
                 }
             }
         }
-        .padding(.horizontal, 4).padding(.vertical, 5)
-        .frame(width: 22, height: 32, alignment: .top)
-        .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(palette.ink, lineWidth: 1.5))
+        .padding(.horizontal, 5).padding(.vertical, 7)
+        .frame(width: 30, height: 46, alignment: .top)
+        .overlay(RoundedRectangle(cornerRadius: 6, style: .continuous).stroke(palette.ink, lineWidth: 1.5))
     }
 }
 
