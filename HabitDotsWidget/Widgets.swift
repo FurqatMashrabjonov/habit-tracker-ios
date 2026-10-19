@@ -18,8 +18,16 @@ struct WidgetPalette {
     let tick: Color
     let mono: Bool
     let dots: DotShape
+    var ink: DotInk = .plain
+    /// A bundled font's PostScript name (Dot matrix, Receipt); nil for Inter or the system monospace.
+    var fontName: String? = nil
+    /// The card: a thin ink border (Outline); a header line and sharp corners (Receipt).
+    var outlineCard = false
+    var receipt = false
 
+    /// Without Pro every widget falls back to the free look; its settings are kept.
     static func resolve(_ look: WidgetLook, darkText: Bool, scheme: ColorScheme) -> WidgetPalette {
+        let look = look.pro && !Shared.pro ? .auto : look
         switch look {
         case .auto:
             let dark = scheme == .dark
@@ -35,17 +43,52 @@ struct WidgetPalette {
         case .terminal:
             return WidgetPalette(background: .black, text: Color(hex: 0xD4D4D2), dim: Color(hex: 0x7A7A78), tile: Color(hex: 0x1C1C1C),
                                  tick: .black, mono: true, dots: .pixel)
+        case .dotMatrix:
+            return WidgetPalette(background: .black, text: .white, dim: Color(hex: 0x8C8C8C), tile: Color(hex: 0x161617),
+                                 tick: .black, mono: false, dots: .round, ink: DotInk(glow: true), fontName: "DotGothic16-Regular")
+        case .eink:
+            return WidgetPalette(background: Color(hex: 0xECECEA), text: Color(hex: 0x2B2B2B), dim: Color(hex: 0x6E6E6E), tile: Color(hex: 0xDEDEDA),
+                                 tick: Color(hex: 0xECECEA), mono: true, dots: .square)
+        case .outline:
+            return WidgetPalette(background: .white, text: Color(hex: 0x1F1E1B), dim: Color(hex: 0x6B6962), tile: Color(hex: 0xF0F0EC),
+                                 tick: .white, mono: false, dots: .round, ink: DotInk(outline: true), outlineCard: true)
+        case .receipt:
+            return WidgetPalette(background: Color(hex: 0xF4F4F2), text: Color(hex: 0x262626), dim: Color(hex: 0x7B7B78), tile: Color(hex: 0xE6E6E2),
+                                 tick: Color(hex: 0xF4F4F2), mono: false, dots: .pixel, fontName: "VT323-Regular", receipt: true)
         }
     }
 
     func font(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        mono ? .system(size: size, weight: weight, design: .monospaced) : Type.inter(size, weight)
+        // Bundled display faces have one weight and sit smaller on the line, so they get a little more size.
+        if let fontName { return .custom(fontName, size: fontName == "VT323-Regular" ? size * 1.25 : size * 1.05) }
+        return mono ? .system(size: size, weight: weight, design: .monospaced) : Type.inter(size, weight)
     }
 }
 
 private extension View {
     func widgetLook(_ p: WidgetPalette) -> some View {
-        foregroundStyle(p.text).containerBackground(for: .widget) { p.background }
+        foregroundStyle(p.text)
+            // Outline: a 1pt ink border that follows the system's own widget shape.
+            .containerBackground(for: .widget) {
+                ZStack { p.background; if p.outlineCard { ContainerRelativeShape().strokeBorder(p.text, lineWidth: 1) } }
+            }
+    }
+}
+
+/// The Receipt look's header line above a widget's content; nothing for other looks.
+private struct LookHeader: View {
+    let p: WidgetPalette
+    var body: some View {
+        if p.receipt { Text("* HABITDOTS *").font(p.font(9)).foregroundStyle(p.dim).frame(maxWidth: .infinity).padding(.bottom, 2) }
+    }
+}
+
+/// The Receipt look's dashed total line under a list; nothing for other looks.
+private struct LookFooter: View {
+    let p: WidgetPalette
+    let text: String
+    var body: some View {
+        if p.receipt { Text("- - - - - - - - - - - - - - - -  \(text)").font(p.font(9)).foregroundStyle(p.dim).lineLimit(1) }
     }
 }
 
@@ -141,6 +184,7 @@ struct HabitWidgetView: View {
     private func content(_ h: HabitSnap, _ p: WidgetPalette) -> some View {
         let layout = entry.config.layout
         VStack(alignment: .leading, spacing: 8) {
+            LookHeader(p: p)
             HStack(alignment: .center, spacing: 8) {
                 if family != .systemSmall { IconTile(icon: h.icon, size: 30, p: p) }
                 VStack(alignment: .leading, spacing: 1) {
@@ -160,10 +204,10 @@ struct HabitWidgetView: View {
             }
             switch layout {
             case .wall:
-                WidgetDots(data: h.progress, today: entry.today, shape: p.dots, off: { h.offDays.contains($0) })
+                WidgetDots(data: h.progress, today: entry.today, shape: p.dots, ink: p.ink, off: { h.offDays.contains($0) })
             case .week:
                 Spacer(minLength: 0)
-                WidgetWeek(data: h.progress, today: entry.today, shape: p.dots).frame(maxHeight: 40)
+                WidgetWeek(data: h.progress, today: entry.today, shape: p.dots, ink: p.ink).frame(maxHeight: 40)
             case .ring:
                 // This month: share of due days done, as a ring and a number.
                 let rate = h.monthDue == 0 ? 0 : Double(h.monthDone) / Double(h.monthDue)
@@ -180,12 +224,16 @@ struct HabitWidgetView: View {
                 }
                 .frame(maxHeight: .infinity)
             case .hero:
-                // The streak as the headline, a short wall under it.
+                // The streak as the headline, big; the last 14 days as one row under it.
                 HStack(alignment: .lastTextBaseline, spacing: 6) {
-                    Text("\(h.streak)").font(p.font(34, .bold))
+                    Text("\(h.streak)").font(p.font(family == .systemSmall ? 36 : 44, .bold))
                     Text("day streak").font(p.font(12)).foregroundStyle(p.dim)
                 }
-                WidgetDots(data: h.progress, today: entry.today, shape: p.dots, maxCell: 8)
+                Spacer(minLength: 0)
+                WidgetWeek(data: h.progress, today: entry.today, shape: p.dots, ink: p.ink, days: 14).frame(maxHeight: 14)
+            case .bars:
+                // One bar per week: how many of its days were done. No dots at all.
+                WidgetBars(data: h.progress, today: entry.today, weeks: family == .systemSmall ? 8 : 16)
             }
         }
     }
@@ -236,8 +284,9 @@ struct ChecklistView: View {
         let p = WidgetPalette.resolve(entry.config.look, darkText: entry.config.darkText, scheme: scheme)
         let rows = entry.config.rows
         let counted = entry.habits.filter { !$0.off || $0.done }
-        let limit = family == .systemLarge ? 8 : 3
+        let limit = family == .systemLarge ? (p.receipt ? 7 : 8) : (p.receipt ? 2 : 3)
         VStack(alignment: .leading, spacing: 6) {
+            LookHeader(p: p)
             HStack {
                 Text("Today").font(p.font(15, .bold))
                 Spacer()
@@ -254,7 +303,7 @@ struct ChecklistView: View {
                         if h.off { Text("Day off").font(p.font(11)).foregroundStyle(p.dim) } else { Streak(days: h.streak, p: p) }
                     }
                     Spacer(minLength: 4)
-                    if rows == .dots { WidgetWeek(data: h.progress, today: entry.today, shape: p.dots).frame(width: 90, height: 11) }
+                    if rows == .dots { WidgetWeek(data: h.progress, today: entry.today, shape: p.dots, ink: p.ink).frame(width: 90, height: 11) }
                     Button(intent: ToggleHabit(id: h.id)) {
                         WidgetCheck(done: h.done, partial: h.partial, tick: p.tick).frame(width: 26, height: 26)
                     }
@@ -264,9 +313,10 @@ struct ChecklistView: View {
                 .opacity(h.off && !h.done ? 0.5 : 1)
             }
             Spacer(minLength: 0)
-            if entry.habits.count > limit {
+            if entry.habits.count > limit && !p.receipt {
                 Text("+\(entry.habits.count - limit) more").font(p.font(11)).foregroundStyle(p.dim)
             }
+            LookFooter(p: p, text: (entry.habits.count > limit ? "+\(entry.habits.count - limit) MORE · " : "") + "TOTAL \(counted.filter(\.done).count)/\(counted.count)")
         }
         .widgetLook(p)
     }
@@ -314,9 +364,10 @@ struct InboxWidgetView: View {
 
     var body: some View {
         let p = WidgetPalette.resolve(entry.config.look, darkText: entry.config.darkText, scheme: scheme)
-        let limit = family == .systemLarge ? 8 : 3
+        let limit = family == .systemLarge ? (p.receipt ? 7 : 8) : (p.receipt ? 2 : 3)
         let now = Calendar.current.dateComponents([.hour, .minute], from: Date())
         VStack(alignment: .leading, spacing: 6) {
+            LookHeader(p: p)
             HStack {
                 Text("Inbox").font(p.font(15, .bold))
                 Text("\(entry.tasks.count)").font(p.font(13, .bold)).foregroundStyle(p.dim)
@@ -348,6 +399,7 @@ struct InboxWidgetView: View {
                 .frame(maxHeight: 30)
             }
             Spacer(minLength: 0)
+            LookFooter(p: p, text: (entry.tasks.count > limit ? "+\(entry.tasks.count - limit) MORE · " : "") + "OPEN \(entry.tasks.count)")
         }
         .widgetLook(p)
         .widgetURL(URL(string: "habitdots://inbox")!)

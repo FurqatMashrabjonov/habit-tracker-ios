@@ -18,7 +18,7 @@ struct Paywall: View {
         ScrollView {
         VStack(alignment: .leading, spacing: 14) {
             Text("HabitDots Pro").font(Type.headlineSmall)
-            Text("Everything you see is free: card styles, widgets, reminders and your data, with up to \(Store.freeHabits) habits. Pro adds:")
+            Text("Everything you see is free: tracking, every widget, reminders and your data, with up to \(Store.freeHabits) habits. Pro adds:")
                 .font(Type.bodyMedium).foregroundStyle(palette.dim)
             // What you get, drawn: a tile per feature with a small picture of it.
             Grid(horizontalSpacing: 10, verticalSpacing: 10) {
@@ -28,7 +28,7 @@ struct Paywall: View {
                 }
                 GridRow {
                     FeatureTile(title: "Sync", note: "The same dots on every phone") { MiniSync() }
-                    FeatureTile(title: "App icons", note: "Paper, Night, Mono, Dots") { MiniIcons() }
+                    FeatureTile(title: "Home screen looks", note: "Widget looks, dot shapes and app icons") { MiniLooks() }
                 }
             }
             HStack(spacing: 10) {
@@ -176,14 +176,33 @@ private struct MiniNudge: View {
 }
 
 /// The app icons, small.
-private struct MiniIcons: View {
+/// Swatches of the widget looks (Paper, Dot matrix, Outline, Receipt) and one app icon.
+private struct MiniLooks: View {
+    @Environment(\.palette) private var palette
     var body: some View {
-        HStack(spacing: 6) {
-            ForEach(AppIconChoice.allCases, id: \.self) {
-                Image("IconPreview-\($0.name)").resizable().frame(width: 26, height: 26)
-                    .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        HStack(spacing: 5) {
+            swatch(fill: .white, dot: Color(hex: 0x37352F), border: palette.hairline)
+            swatch(fill: .black, dot: .white, border: .clear, round: true, glow: true)
+            swatch(fill: .white, dot: Color(hex: 0x1F1E1B), border: Color(hex: 0x1F1E1B), round: true, outline: true)
+            swatch(fill: Color(hex: 0xF4F4F2), dot: Color(hex: 0x262626), border: palette.hairline)
+            Image("IconPreview-Night").resizable().frame(width: 26, height: 26).clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        }
+    }
+    private func swatch(fill: Color, dot: Color, border: Color, round: Bool = false, outline: Bool = false, glow: Bool = false) -> some View {
+        HStack(spacing: 2) {
+            ForEach(0..<3, id: \.self) { i in
+                let on = i != 1
+                let shape = RoundedRectangle(cornerRadius: round ? 2.5 : 1.2, style: .continuous)
+                ZStack {
+                    if outline && !on { shape.stroke(dot, lineWidth: 1) } else { shape.fill(dot.opacity(on ? 1 : 0.3)) }
+                    if glow && on { shape.stroke(dot.opacity(0.35), lineWidth: 2) }
+                }
+                .frame(width: 5, height: 5)
             }
         }
+        .frame(width: 26, height: 26)
+        .background(fill, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 7, style: .continuous).stroke(border, lineWidth: 1))
     }
 }
 

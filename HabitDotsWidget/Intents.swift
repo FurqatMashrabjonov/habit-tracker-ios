@@ -54,19 +54,22 @@ struct CompleteTask: AppIntent {
 
 /// A widget's look: what it is made of, never what colour it is (Android's Look).
 enum WidgetLook: String, AppEnum {
-    case auto, clear, glass, terminal
+    case auto, clear, glass, terminal, dotMatrix, eink, outline, receipt
+    /// Every look but Paper/Night is part of "Home screen looks" (Pro).
+    var pro: Bool { self != .auto }
     static let typeDisplayRepresentation: TypeDisplayRepresentation = "Look"
     static let caseDisplayRepresentations: [WidgetLook: DisplayRepresentation] = [
-        .auto: "Paper / Night", .clear: "Clear", .glass: "Glass", .terminal: "Terminal",
+        .auto: "Paper / Night", .clear: "Clear (Pro)", .glass: "Glass (Pro)", .terminal: "Terminal (Pro)",
+        .dotMatrix: "Dot matrix (Pro)", .eink: "E-ink (Pro)", .outline: "Outline (Pro)", .receipt: "Receipt (Pro)",
     ]
 }
 
-/// What a single-habit widget leads with. Only the wall is free.
+/// What a single-habit widget leads with. All free.
 enum HabitLayoutOption: String, AppEnum {
-    case wall, week, ring, hero
+    case wall, week, ring, hero, bars
     static let typeDisplayRepresentation: TypeDisplayRepresentation = "Layout"
     static let caseDisplayRepresentations: [HabitLayoutOption: DisplayRepresentation] = [
-        .wall: "Dot wall", .week: "Last 7 days", .ring: "This month", .hero: "Streak",
+        .wall: "Dot wall", .week: "Last 7 days", .ring: "This month", .hero: "Streak", .bars: "Weekly bars",
     ]
 }
 

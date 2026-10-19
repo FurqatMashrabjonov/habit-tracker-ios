@@ -50,6 +50,9 @@ struct WidgetGallery: View {
 private struct GalleryBackground: View {
     let look: WidgetLook
     @Environment(\.colorScheme) private var scheme
-    var body: some View { WidgetPalette.resolve(look, darkText: false, scheme: scheme).background }
+    var body: some View {
+        let p = WidgetPalette.resolve(look, darkText: false, scheme: scheme)
+        ZStack { p.background; if p.outlineCard { RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(p.text, lineWidth: 1) } }
+    }
 }
 #endif

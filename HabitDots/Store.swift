@@ -1,4 +1,5 @@
 import Foundation
+import WidgetKit
 import StoreKit
 import HabitData
 
@@ -118,7 +119,12 @@ final class Store {
         }
     }
 
+    /// The widgets read Pro from the shared folder: their looks fall back to Paper/Night without it.
     private func publish() {
+        if Shared.pro != active {
+            Shared.pro = active
+            WidgetCenter.shared.reloadAllTimelines()
+        }
         if active { paywall = false }
     }
 }

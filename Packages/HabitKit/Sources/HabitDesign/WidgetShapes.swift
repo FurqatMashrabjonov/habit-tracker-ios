@@ -9,6 +9,39 @@ import WidgetKit
  * come again as plain shapes, with the same proportions as `drawCheck` and `drawCell`.
  */
 
+/// How cells are inked beyond their shape: `outline` draws undone days as rings, `glow` lights done ones (widget looks).
+public struct DotInk: Sendable, Equatable {
+    public var outline = false
+    public var glow = false
+    public init(outline: Bool = false, glow: Bool = false) { self.outline = outline; self.glow = glow }
+    public static let plain = DotInk()
+}
+
+/// The dots of one state drawn with an ink: a plain fill, rings, or a fill with a halo behind it.
+struct InkedCells: View {
+    let cells: [CGRect]
+    let corner: CGFloat
+    let level: Double // 0 empty, 0.5 partial, 1 done
+    let ink: DotInk
+    let faint: Double // opacity of an empty plain fill
+    var body: some View {
+        if cells.isEmpty { EmptyView() } else if ink.outline && level < 1 {
+            let w = max(1, min(2, (cells[0].width * 0.12)))
+            ZStack(alignment: .topLeading) {
+                if level > 0 { CellsShape(cells: cells, corner: corner).fill(.primary.opacity(0.22)) }
+                CellsShape(cells: cells.map { $0.insetBy(dx: w / 2, dy: w / 2) }, corner: corner).stroke(.primary.opacity(level > 0 ? 0.8 : 0.4), lineWidth: w)
+            }
+        } else if level >= 1 {
+            ZStack(alignment: .topLeading) {
+                if ink.glow { let g = cells[0].width * 0.35; CellsShape(cells: cells.map { $0.insetBy(dx: -g, dy: -g) }, corner: corner).fill(.primary.opacity(0.28)) }
+                CellsShape(cells: cells, corner: corner).fill(.primary).widgetAccentableIfAvailable()
+            }
+        } else {
+            CellsShape(cells: cells, corner: corner).fill(.primary.opacity(level > 0 ? 0.45 : faint))
+        }
+    }
+}
+
 /// Rounded cells, one path, filled once: a whole wall of dots costs one view.
 public struct CellsShape: Shape {
     public let cells: [CGRect]
@@ -27,10 +60,11 @@ public struct WidgetDots: View {
     public let today: Day
     public var shape: DotShape = .square
     public var maxCell: CGFloat = 16
+    public var ink: DotInk = .plain
     /// Days that are neither due nor done, drawn fainter than empty ones.
     public var off: (Day) -> Bool = { _ in false }
-    public init(data: [Day: Double], today: Day, shape: DotShape = .square, maxCell: CGFloat = 16, off: @escaping (Day) -> Bool = { _ in false }) {
-        self.data = data; self.today = today; self.shape = shape; self.maxCell = maxCell; self.off = off
+    public init(data: [Day: Double], today: Day, shape: DotShape = .square, maxCell: CGFloat = 16, ink: DotInk = .plain, off: @escaping (Day) -> Bool = { _ in false }) {
+        self.data = data; self.today = today; self.shape = shape; self.maxCell = maxCell; self.ink = ink; self.off = off
     }
 
     public var body: some View {
@@ -43,9 +77,9 @@ public struct WidgetDots: View {
             let groups = Self.cells(data: data, from: start, today: today, step: cell * 1.2, size: s, off: off)
             ZStack(alignment: .topLeading) {
                 CellsShape(cells: groups.off, corner: shape.radius).fill(.primary.opacity(0.07))
-                CellsShape(cells: groups.empty, corner: shape.radius).fill(.primary.opacity(emptyAlpha))
-                CellsShape(cells: groups.partial, corner: shape.radius).fill(.primary.opacity(0.45))
-                CellsShape(cells: groups.done, corner: shape.radius).fill(.primary).widgetAccentableIfAvailable()
+                InkedCells(cells: groups.empty, corner: shape.radius, level: 0, ink: ink, faint: emptyAlpha)
+                InkedCells(cells: groups.partial, corner: shape.radius, level: 0.5, ink: ink, faint: emptyAlpha)
+                InkedCells(cells: groups.done, corner: shape.radius, level: 1, ink: ink, faint: emptyAlpha)
             }
             .frame(width: CGFloat(weeks) * cell * 1.2 - cell * 0.2, height: cell * 8.2, alignment: .topLeading)
         }
@@ -66,23 +100,65 @@ public struct WidgetDots: View {
     }
 }
 
-/// The last seven days as one row of big dots.
+/// The last `days` days (seven by default) as one row of big dots.
 public struct WidgetWeek: View {
     public let data: [Day: Double]
     public let today: Day
     public var shape: DotShape = .square
-    public init(data: [Day: Double], today: Day, shape: DotShape = .square) { self.data = data; self.today = today; self.shape = shape }
+    public var ink: DotInk = .plain
+    public var days = 7
+    public init(data: [Day: Double], today: Day, shape: DotShape = .square, ink: DotInk = .plain, days: Int = 7) {
+        self.data = data; self.today = today; self.shape = shape; self.ink = ink; self.days = days
+    }
     public var body: some View {
         GeometryReader { geo in
-            let cell = min(geo.size.width / (7 * 1.2 - 0.2), geo.size.height)
-            let g = WidgetDots.cells(data: data, from: today - 6, today: today, step: cell * 1.2, size: cell * shape.grow, off: { _ in false })
-            // Seven days from a Monday-less start land in one column; turn it into a row.
-            let row = { (rs: [CGRect]) in rs.map { CGRect(x: $0.minY, y: 0, width: $0.width, height: $0.height) } }
+            let cell: CGFloat = min(geo.size.width / (CGFloat(days) * 1.2 - 0.2), geo.size.height)
+            let g = Self.row(data: data, today: today, days: days, step: cell * 1.2, size: cell * shape.grow)
             ZStack(alignment: .topLeading) {
-                CellsShape(cells: row(g.empty), corner: shape.radius).fill(.primary.opacity(emptyAlpha))
-                CellsShape(cells: row(g.partial), corner: shape.radius).fill(.primary.opacity(0.45))
-                CellsShape(cells: row(g.done), corner: shape.radius).fill(.primary).widgetAccentableIfAvailable()
+                InkedCells(cells: g.empty, corner: shape.radius, level: 0, ink: ink, faint: emptyAlpha)
+                InkedCells(cells: g.partial, corner: shape.radius, level: 0.5, ink: ink, faint: emptyAlpha)
+                InkedCells(cells: g.done, corner: shape.radius, level: 1, ink: ink, faint: emptyAlpha)
             }
+        }
+    }
+
+    /// Cells laid out by day index along one row, the same step as the wall.
+    static func row(data: [Day: Double], today: Day, days: Int, step: CGFloat, size: CGFloat) -> (empty: [CGRect], partial: [CGRect], done: [CGRect]) {
+        var empty: [CGRect] = [], partial: [CGRect] = [], done: [CGRect] = []
+        let from = today - (days - 1)
+        for i in 0..<days {
+            let r = CGRect(x: CGFloat(i) * step, y: 0, width: size, height: size)
+            let v = data[from + i] ?? 0
+            if v >= 1 { done.append(r) } else if v > 0 { partial.append(r) } else { empty.append(r) }
+        }
+        return (empty, partial, done)
+    }
+}
+
+/// One bar per week, as tall as that week's done days out of 7; the current week last. No dots at all.
+public struct WidgetBars: View {
+    public let data: [Day: Double]
+    public let today: Day
+    public var weeks = 12
+    public init(data: [Day: Double], today: Day, weeks: Int = 12) { self.data = data; self.today = today; self.weeks = weeks }
+    public var body: some View {
+        GeometryReader { geo in
+            let gap = geo.size.width / CGFloat(weeks) * 0.25
+            let bar = (geo.size.width - gap * CGFloat(weeks - 1)) / CGFloat(weeks)
+            let monday = today.weekStart
+            HStack(alignment: .bottom, spacing: gap) {
+                ForEach(0..<weeks, id: \.self) { w in
+                    let start = monday - 7 * (weeks - 1 - w)
+                    let done = (0..<7).filter { (data[start + $0] ?? 0) >= 1 }.count
+                    let h = max(geo.size.height * CGFloat(done) / 7, geo.size.height * 0.08)
+                    let strong = w == weeks - 1 || done >= 5
+                    UnevenRoundedRectangle(topLeadingRadius: bar * 0.25, topTrailingRadius: bar * 0.25)
+                        .fill(.primary.opacity(strong ? 1 : 0.45))
+                        .frame(width: bar, height: h)
+                        .widgetAccentableIfAvailable()
+                }
+            }
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .bottom)
         }
     }
 }
