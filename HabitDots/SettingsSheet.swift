@@ -111,9 +111,13 @@ private struct LicensesPage: View {
 
             GRDB.swift: MIT License.
 
+            RevenueCat Purchases: MIT License.
+
             Phosphor Icons: MIT License.
 
-            Full license texts: apache.org/licenses/LICENSE-2.0 and opensource.org/license/mit.
+            Inter, VT323 and DotGothic16 fonts: SIL Open Font License 1.1.
+
+            Full license texts: apache.org/licenses/LICENSE-2.0, opensource.org/license/mit and openfontlicense.org.
             """)
             .font(Type.bodyMedium)
             .frame(maxWidth: .infinity, alignment: .leading)
