@@ -163,10 +163,11 @@ The same numbers go into App Store Connect when the Apple account exists: Apple'
 Yearly : lifetime is ≈1 : 1.9 at launch and ≈1 : 2.5 after, so the paywall's "pays off in N years" line stays true. Review once a year: TRY, ARS, EGP, NGN and PKR lose value fast.
 
 **Code, next phase**
-5. One "Looks" gallery: card styles and widget looks chosen in one visual place, not a settings list (iOS has no widget-look picker in the app at all).
-6. Widget looks wave 2: Pixel, Typewriter, Negative, Serif (backlog: Graph, Frame, Hatched, Ledger). Black, white and grey only.
-7. Lock screen widgets; sections (Morning/Evening); a "2026 in dots" year share card before the new year; iOS 27 extra-large "Year in dots" widget.
-8. Check by hand: drag-to-reorder on both phones.
+5. **Play Store screenshots, super upgrade** (asked 2026-10-20): the listing still shows the old app. New set in the Easlo style (white ground, one big line per shot, one message each), led by what only HabitDots does: Year in dots on the lock screen, widgets in their looks (Dot matrix, Receipt, Plain Inbox), the habit wall, the tabbed look editors, the paywall carousel. Same set for the App Store later.
+6. One "Looks" gallery: card styles and widget looks chosen in one visual place, not a settings list (iOS has no widget-look picker in the app at all).
+7. Widget looks wave 2: Pixel, Typewriter, Negative, Serif (backlog: Graph, Frame, Hatched, Ledger). Black, white and grey only.
+8. Lock screen widgets; sections (Morning/Evening); a "2026 in dots" year share card before the new year; iOS 27 extra-large "Year in dots" widget.
+9. Check by hand: drag-to-reorder on both phones.
 
 **Known issues**
 - iOS `HabitDotsTests/StoreTests` now checks only the Pro gates (purchases go through RevenueCat and are checked by hand); `androidTrashSnapshotReads` in HabitKit is flaky.
