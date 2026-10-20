@@ -54,6 +54,7 @@ User's rules for onboarding: **never mention or show Pro** (no looks step, no fr
 
 - **Settings → Appearance** shows only the app theme (System/Light/Dark). Card styles are on the home screen; widget light/dark is in each widget's settings (Android).
 - **Card style button** moved next to the add button, a round header button like Settings whose icon is the style in use (wall / four squares / rows). The picker has no frames or checkboxes: each style's real card sits on its own grey slab (darker with an "In use" tag for the current one); one tap picks and closes.
+- **Task priority removed (2026-10-20)**: no P1–P4 chip, flag, "p1" quick-add tag or priority sort, on either platform (the Inbox is: a task comes in, gets done, gone). The `priority` column stays in the shared schema and sync, unused.
 - **Inbox widget** shows one-off tasks only: repeating tasks never appear (the Inbox is for things done once). "Show: Inbox" lists every open one-off task; "Show: Today" only those due today or overdue. iOS gained the same Show option (`InboxShowOption` in `Intents.swift`).
 
 ## QA on 2026-10-19 (Samsung S22 + iPhone 17 Pro simulator)
@@ -139,11 +140,10 @@ The same numbers go into App Store Connect when the Apple account exists: Apple'
 Yearly : lifetime is ≈1 : 1.9 at launch and ≈1 : 2.5 after, so the paywall's "pays off in N years" line stays true. Review once a year: TRY, ARS, EGP, NGN and PKR lose value fast.
 
 **Code, next phase**
-5. Priority placement: where the Inbox priority flag and ordering show on widgets and the home screen.
-6. One "Looks" gallery: card styles and widget looks chosen in one visual place, not a settings list (iOS has no widget-look picker in the app at all).
-7. Widget looks wave 2: Pixel, Typewriter, Negative, Serif (backlog: Graph, Frame, Hatched, Ledger). Black, white and grey only.
-8. Lock screen widgets; sections (Morning/Evening); a "2026 in dots" year share card before the new year; iOS 27 extra-large "Year in dots" widget.
-9. Check by hand: drag-to-reorder on both phones.
+5. One "Looks" gallery: card styles and widget looks chosen in one visual place, not a settings list (iOS has no widget-look picker in the app at all).
+6. Widget looks wave 2: Pixel, Typewriter, Negative, Serif (backlog: Graph, Frame, Hatched, Ledger). Black, white and grey only.
+7. Lock screen widgets; sections (Morning/Evening); a "2026 in dots" year share card before the new year; iOS 27 extra-large "Year in dots" widget.
+8. Check by hand: drag-to-reorder on both phones.
 
 **Known issues**
 - iOS `HabitDotsTests/StoreTests` now checks only the Pro gates (purchases go through RevenueCat and are checked by hand); `androidTrashSnapshotReads` in HabitKit is flaky.

@@ -72,10 +72,6 @@ struct TaskRow: View {
             .accessibilityLabel("Complete \(task.title)")
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
-                    // A flag in ink, darker the more urgent, as on the widget.
-                    if let a = Priority.alpha(task.priority) {
-                        Image("Icons/flag").resizable().frame(width: 16, height: 16).opacity(a).accessibilityLabel("Priority \(task.priority)")
-                    }
                     Text(task.title).font(Type.bodyLarge).lineLimit(2).strikethrough(completing)
                 }
                 if !meta.isEmpty {
@@ -105,7 +101,6 @@ struct TaskSheet: View {
     @State private var date: Day?
     @State private var time: ClockTime?
     @State private var rule: Repeat?
-    @State private var priority = Priority.none
     @State private var pickingDate = false
     @State private var pickingTime = false
     @State private var pickingDays = false
@@ -150,14 +145,6 @@ struct TaskSheet: View {
                                 ForEach(2...14, id: \.self) { n in Button("Every \(n) days") { rule = .everyDays(n) } }
                             }
                         } label: { Chip(label: rule.map { Words.repeat($0) } ?? "Repeat", icon: "ui-arrows-clockwise", active: rule != nil) }
-                        Menu {
-                            ForEach(1...Priority.none, id: \.self) { p in
-                                Button { priority = p } label: { Label("Priority \(p)", image: "Icons/flag") }
-                            }
-                        } label: {
-                            Chip(label: priority == Priority.none ? "Priority" : "P\(priority)", icon: "flag", active: priority != Priority.none,
-                                 tint: Priority.alpha(priority))
-                        }
                     }
                     .padding(.trailing, 24) // room for the fade, so the last chip can scroll fully into view
                 }
@@ -181,7 +168,7 @@ struct TaskSheet: View {
         .presentationCornerRadius(Radius.sheet)
         .presentationBackground(palette.surfaceLow)
         .onAppear {
-            title = initial.title; date = initial.dueDate; time = initial.dueTime; rule = Repeat.decode(initial.repeat); priority = initial.priority
+            title = initial.title; date = initial.dueDate; time = initial.dueTime; rule = Repeat.decode(initial.repeat)
             focused = true
         }
         .sheet(isPresented: $pickingDate) {
@@ -199,10 +186,7 @@ struct TaskSheet: View {
     private func save() {
         guard canSave else { return }
         var t = initial
-        // Quick add like Todoist: "Pay rent p1" saves "Pay rent" at priority 1.
-        let (clean, tagged) = Priority.parse(title.trimmingCharacters(in: .whitespaces))
-        t.title = clean
-        t.priority = tagged ?? priority
+        t.title = title.trimmingCharacters(in: .whitespaces)
         // A time or a repeat needs a day to hang on: today when none was picked.
         t.dueDate = date ?? ((time != nil || rule != nil) ? today : nil)
         t.dueTime = time
@@ -216,12 +200,10 @@ private struct Chip: View {
     let label: String
     let icon: String
     let active: Bool
-    /// Ink depth for the icon (a priority flag); nil draws it like the label.
-    var tint: Double? = nil
     @Environment(\.palette) private var palette
     var body: some View {
         HStack(spacing: 6) {
-            Image("Icons/\(icon)").resizable().frame(width: 18, height: 18).opacity(active ? (tint ?? 1) : 1)
+            Image("Icons/\(icon)").resizable().frame(width: 18, height: 18)
             Text(label).font(Type.labelLarge)
         }
         .foregroundStyle(active ? palette.ink : palette.dim)

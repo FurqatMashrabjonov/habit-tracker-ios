@@ -91,7 +91,7 @@ public struct Task: Codable, Hashable, Sendable, FetchableRecord, MutablePersist
     public var dueTime: ClockTime?
     /// `Repeat.encode()` or nil for one-off.
     public var `repeat`: String?
-    /// Todoist scale: 1 = highest, 4 = none.
+    /// Todoist scale (1 = highest, 4 = none). Not shown or used since 2026-10-20; kept for the shared schema and sync.
     public var priority: Int = 4
     public var done: Bool = false
     public var completedAt: Int64?
