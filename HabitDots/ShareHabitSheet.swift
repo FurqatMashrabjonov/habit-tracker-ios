@@ -115,7 +115,7 @@ private struct ShareCard: View {
             LabeledHeatmap(data: Dictionary(uniqueKeysWithValues: done.map { ($0, 1.0) }), today: today).padding(.top, 14)
             // The count, and where the card comes from: a shared wall is how most people find the app.
             HStack {
-                Text("\(done.count) completions").font(.system(size: 11, weight: .medium, design: .monospaced))
+                Text("\(done.count) completion\(done.count == 1 ? "" : "s")").font(.system(size: 11, weight: .medium, design: .monospaced))
                 Spacer()
                 Text("HabitDots").font(Type.labelSmall)
             }
