@@ -158,6 +158,7 @@ Yearly : lifetime is ≈1 : 1.9 at launch and ≈1 : 2.5 after, so the paywall's
 
 ## Artifacts (private, claude.ai)
 
+- **Final A–Z QA plan (2026-10-20, before release; checkboxes persist in the browser): https://claude.ai/artifact/SbgVmc2H2TjFjFe9qMz24w**
 - QA plan 2026-10-19: https://claude.ai/artifact/Thdxs8jsXEhLq3pD85CmkU
 - QA report with screenshots (2026-10-17): https://claude.ai/artifact/2vvVdYZj6sTdJKdHi1z7Ur
 - Habit card view variants: https://claude.ai/artifact/1V59pt4oT3oKQ5vgp5cTkr
